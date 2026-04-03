@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component {
           <div className="text-center space-y-4 max-w-sm">
             <p className="text-5xl">⚠️</p>
             <h2 className="text-xl font-bold text-white">Algo salió mal</h2>
-            <p className="text-gray-400 text-sm">{this.state.message}</p>
+            <p className="text-gray-400 text-sm break-all">{this.state.message}</p>
             <p className="text-gray-600 text-xs">
               Si el error persiste, asegúrate de haber ejecutado el SQL en Supabase
               y de que las variables de entorno estén configuradas en Vercel.

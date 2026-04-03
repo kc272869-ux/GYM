@@ -151,7 +151,7 @@ export default function LogWorkoutPage() {
 
   const addSet = (uid) =>
     setSession(p => p.map(e => e.uid !== uid ? e : {
-      ...e, sets: [...e.sets, newSet(e.sets.at(-1))]
+      ...e, sets: [...e.sets, newSet(e.sets[e.sets.length - 1])]
     }))
 
   const removeSet = (uid, setId) =>
