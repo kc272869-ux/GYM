@@ -1,0 +1,22 @@
+/* Las 3 directivas de Tailwind — deben ir al inicio del CSS global */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fuente Inter desde Google Fonts (se carga en index.html) */
+@layer base {
+  body {
+    @apply font-sans bg-gray-950 text-gray-100 min-h-screen;
+  }
+
+  /* Scrollbar personalizado para un look más limpio */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded-full;
+  }
+}
