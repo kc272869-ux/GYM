@@ -8,7 +8,6 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWorkouts } from '../hooks/useWorkouts'
 import { useSessions } from '../hooks/useSessions'
-import { getRecommendation } from '../utils/recommendations'
 import Badge from '../components/ui/Badge'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -32,18 +31,7 @@ export default function DashboardPage() {
     return { sessions: sessions.length, thisWeek, exercises }
   }, [sessions, workouts])
 
-  const exerciseGroups = useMemo(() => {
-    const g = {}
-    workouts.forEach(w => {
-      const name = w.exercises?.name
-      if (!name) return
-      if (!g[name]) g[name] = []
-      g[name].push(w)
-    })
-    return g
-  }, [workouts])
-
-  return (
+return (
     <div className="max-w-5xl mx-auto px-4 pt-4 pb-6 space-y-5">
 
       {/* ── Hero ──────────────────────────────────────────────────────── */}
@@ -124,47 +112,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Recomendaciones ──────────────────────────────────────────── */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-          <h2 className="font-semibold text-white text-sm">Recomendaciones</h2>
-          <span className="text-[11px] bg-blue-900/50 text-blue-300 border border-blue-800 px-2 py-0.5 rounded-full">Auto</span>
-        </div>
-
-        {loading ? (
-          <div className="p-4 space-y-3">
-            {[1,2].map(i => <div key={i} className="h-14 bg-gray-800 rounded-xl animate-pulse" />)}
-          </div>
-        ) : Object.keys(exerciseGroups).length === 0 ? (
-          <div className="px-4 py-8 text-center text-gray-600 text-sm">
-            <p className="text-3xl mb-2">📊</p>Registra sesiones para ver recomendaciones
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800">
-            {Object.entries(exerciseGroups).slice(0, 4).map(([name, logs]) => {
-              const rec    = getRecommendation(logs)
-              const icons  = { increase:'⬆️', maintain:'➡️', decrease:'⬇️', start:'🚀' }
-              const labels = { increase:'Subir', maintain:'Mantener', decrease:'Bajar', start:'Iniciar' }
-              return (
-                <div key={name} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="text-sm font-medium text-gray-200 truncate">{name}</p>
-                    <Badge color={rec.badgeColor || 'gray'}>{icons[rec.action]} {labels[rec.action]}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-500 pr-3 leading-relaxed">{rec.message}</p>
-                    {rec.suggestedWeight && (
-                      <p className="text-sm font-bold text-white shrink-0">{rec.suggestedWeight} kg</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── CTA nueva sesión ─────────────────────────────────────────── */}
+{/* ── CTA nueva sesión ─────────────────────────────────────────── */}
       {sessions.length > 0 && (
         <Link to="/log"
           className="flex items-center justify-center gap-2 w-full py-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-600/30 rounded-2xl transition-colors active:scale-[0.98] group">
