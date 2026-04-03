@@ -47,7 +47,8 @@ function ProtectedLayout() {
   return (
     <div className="min-h-screen bg-gray-950">
       <Navbar />
-      <main>
+      {/* pb-20 en móvil: espacio para la barra inferior de navegación */}
+      <main className="pb-4 md:pb-8">
         <Routes>
           <Route path="/"          element={<DashboardPage />} />
           <Route path="/exercises" element={<ExercisesPage />} />

@@ -1,28 +1,25 @@
 /**
  * pages/LogWorkoutPage.jsx
  * ------------------------
- * Formulario de sesión: el usuario nombra la sesión opcionalmente,
- * agrega ejercicios y serie por serie. Al guardar se crea una sesión
- * en la tabla `sessions` y sus logs en `workout_logs`.
+ * Formulario de sesión — optimizado para touch en iPhone.
+ * Inputs grandes, RPE con botones en lugar de select, feedback táctil.
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
-import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
 
-const RPE_COLORS = {
-  1:'text-green-400', 2:'text-green-400', 3:'text-green-400', 4:'text-green-400',
-  5:'text-yellow-400', 6:'text-yellow-400',
-  7:'text-orange-400', 8:'text-orange-400',
-  9:'text-red-400', 10:'text-red-400',
+// Color del RPE como fondo de botón
+const rpeColor = (n) => {
+  if (n <= 4)  return 'bg-green-700 text-green-100 border-green-600'
+  if (n <= 6)  return 'bg-yellow-700 text-yellow-100 border-yellow-600'
+  if (n <= 8)  return 'bg-orange-700 text-orange-100 border-orange-600'
+  return              'bg-red-700 text-red-100 border-red-600'
 }
+const rpeColorInactive = 'bg-gray-800 text-gray-600 border-gray-700'
 
-const newSet  = (prev = null) => ({ id: crypto.randomUUID(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
-const newEntry = () => ({ uid: crypto.randomUUID(), exerciseId: '', sets: [newSet()] })
+const newSet   = (prev = null) => ({ id: crypto.randomUUID(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
+const newEntry = ()            => ({ uid: crypto.randomUUID(), exerciseId: '', sets: [newSet()] })
 
 export default function LogWorkoutPage() {
   const navigate = useNavigate()
@@ -54,27 +51,21 @@ export default function LogWorkoutPage() {
       ...e, sets: e.sets.length > 1 ? e.sets.filter(s => s.id !== setId) : e.sets
     }))
 
-  const addExercise   = () => setSession(p => [...p, newEntry()])
+  const addExercise    = () => setSession(p => [...p, newEntry()])
   const removeExercise = (uid) => session.length > 1 && setSession(p => p.filter(e => e.uid !== uid))
 
   // ── guardar ───────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setError('')
     for (const entry of session) {
-      if (!entry.exerciseId)            return setError('Selecciona un ejercicio en cada bloque')
+      if (!entry.exerciseId) return setError('Selecciona un ejercicio en cada bloque')
       for (const s of entry.sets)
-        if (!s.weight || !s.reps)       return setError('Completa peso y reps en todas las series')
+        if (!s.weight || !s.reps) return setError('Completa peso y reps en todas las series')
     }
-
     setSaving(true)
-
-    // Nombre automático si el usuario no pone uno
-    const exNames    = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
-    const autoName   = exNames.filter(Boolean).join(' · ')
-    const finalName  = sessionName.trim() || autoName
-
-    // Aplanar: un objeto por cada set de cada ejercicio
-    const logs = session.flatMap((entry, ei) =>
+    const exNames   = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
+    const finalName = sessionName.trim() || exNames.filter(Boolean).join(' · ')
+    const logs      = session.flatMap((entry, ei) =>
       entry.sets.map((s, si) => ({
         exerciseId: entry.exerciseId,
         weight:     parseFloat(s.weight),
@@ -83,10 +74,8 @@ export default function LogWorkoutPage() {
         notes:      `Ej ${ei+1} · Serie ${si+1}`,
       }))
     )
-
     const { error } = await saveSession({ name: finalName, logs })
     if (error) { setError('Error al guardar. Inténtalo de nuevo.'); setSaving(false); return }
-
     setSuccess(true)
     setTimeout(() => navigate('/history'), 1800)
     setSaving(false)
@@ -94,104 +83,158 @@ export default function LogWorkoutPage() {
 
   const totalSets = session.reduce((s, e) => s + e.sets.length, 0)
 
-  // ── UI ────────────────────────────────────────────────────────────────────
   if (success) return (
-    <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-      <div className="text-6xl">✅</div>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center space-y-4">
+      <div className="text-6xl animate-bounce">✅</div>
       <p className="text-2xl font-bold text-green-400">¡Sesión guardada!</p>
       <p className="text-gray-400">{totalSets} series · {session.length} ejercicio{session.length > 1 ? 's' : ''}</p>
-      <p className="text-gray-600 text-sm">Redirigiendo al historial...</p>
     </div>
   )
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+    <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">➕ Nueva sesión</h1>
-        <p className="text-gray-500 text-sm mt-1">{session.length} ejercicio{session.length > 1 ? 's' : ''} · {totalSets} series</p>
+        <h1 className="text-xl font-bold text-white">➕ Nueva sesión</h1>
+        <p className="text-gray-500 text-xs mt-0.5">{session.length} ejercicio{session.length > 1 ? 's' : ''} · {totalSets} series</p>
       </div>
 
       {/* Nombre de la sesión */}
-      <Input
-        placeholder='Nombre de la sesión (ej: "Día A — Pecho") — opcional'
+      <input
+        type="text"
+        placeholder='Nombre (ej: "Día A — Pecho") — opcional'
         value={sessionName}
         onChange={e => setSessionName(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl border bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
-      {/* Bloques de ejercicio */}
+      {/* Bloques */}
       {session.map((entry, exIdx) => (
-        <Card key={entry.uid} className="space-y-4">
+        <div key={entry.uid} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
 
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-              Ejercicio {exIdx + 1}
-            </span>
+          {/* Header bloque */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ejercicio {exIdx + 1}</span>
             {session.length > 1 && (
-              <button onClick={() => removeExercise(entry.uid)} className="text-xs text-gray-600 hover:text-red-400 transition-colors">
+              <button onClick={() => removeExercise(entry.uid)} className="text-xs text-red-500 hover:text-red-400">
                 Eliminar
               </button>
             )}
           </div>
 
-          <Select value={entry.exerciseId} onChange={e => setExercise(entry.uid, e.target.value)}>
-            <option value="">— Selecciona un ejercicio —</option>
-            {exercises.map(ex => (
-              <option key={ex.id} value={ex.id}>{ex.name} ({ex.muscle_group})</option>
-            ))}
-          </Select>
-
-          {/* Cabecera columnas */}
-          <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1.5rem] gap-2 px-1">
-            <span className="text-xs text-gray-600 text-center">#</span>
-            <span className="text-xs text-gray-500 text-center font-medium">kg</span>
-            <span className="text-xs text-gray-500 text-center font-medium">Reps</span>
-            <span className="text-xs text-gray-500 text-center font-medium">RPE</span>
-            <span />
+          {/* Selector ejercicio */}
+          <div className="px-4 pt-3 pb-2">
+            <select
+              value={entry.exerciseId}
+              onChange={e => setExercise(entry.uid, e.target.value)}
+              className="w-full px-3 py-3 rounded-xl border bg-gray-800 border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— Selecciona un ejercicio —</option>
+              {exercises.map(ex => (
+                <option key={ex.id} value={ex.id}>{ex.name} ({ex.muscle_group})</option>
+              ))}
+            </select>
           </div>
 
           {/* Series */}
-          <div className="space-y-2">
+          <div className="px-4 pb-3 space-y-3">
             {entry.sets.map((set, si) => (
-              <div key={set.id} className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1.5rem] gap-2 items-center">
-                <span className="text-xs text-gray-600 text-center font-bold">{si + 1}</span>
-                <input type="number" step="0.5" min="0" placeholder="kg" value={set.weight}
-                  onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
-                  className="w-full px-2 py-2 rounded-lg border text-sm bg-gray-800 border-gray-700 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" />
-                <input type="number" min="1" max="500" placeholder="reps" value={set.reps}
-                  onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
-                  className="w-full px-2 py-2 rounded-lg border text-sm bg-gray-800 border-gray-700 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" />
-                <select value={set.rpe} onChange={e => updateSet(entry.uid, set.id, 'rpe', e.target.value)}
-                  className={`w-full px-2 py-2 rounded-lg border text-sm bg-gray-800 border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold ${RPE_COLORS[set.rpe]}`}>
-                  {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <button onClick={() => removeSet(entry.uid, set.id)} disabled={entry.sets.length === 1}
-                  className="text-gray-700 hover:text-red-400 transition-colors disabled:opacity-20 text-sm text-center">✕</button>
+              <div key={set.id} className="bg-gray-800 rounded-xl p-3 space-y-3">
+                {/* Número de serie y botón borrar */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500">Serie {si + 1}</span>
+                  <button onClick={() => removeSet(entry.uid, set.id)} disabled={entry.sets.length === 1}
+                    className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm p-1 -m-1 transition-colors">
+                    ✕
+                  </button>
+                </div>
+
+                {/* Peso y Reps en 2 columnas grandes */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500 font-medium">Peso (kg)</label>
+                    <input
+                      type="number" inputMode="decimal" step="0.5" min="0" placeholder="0"
+                      value={set.weight}
+                      onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
+                      className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500 font-medium">Repeticiones</label>
+                    <input
+                      type="number" inputMode="numeric" min="1" max="500" placeholder="0"
+                      value={set.reps}
+                      onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
+                      className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* RPE — botones grandes para touch fácil */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-500 font-medium">
+                    Esfuerzo (RPE) — <span className={`font-bold ${
+                      set.rpe <= 4 ? 'text-green-400' : set.rpe <= 6 ? 'text-yellow-400' : set.rpe <= 8 ? 'text-orange-400' : 'text-red-400'
+                    }`}>{set.rpe}/10</span>
+                  </label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => updateSet(entry.uid, set.id, 'rpe', n)}
+                        className={`h-10 rounded-lg text-sm font-bold border transition-all active:scale-95 ${
+                          set.rpe === n ? rpeColor(n) : rpeColorInactive
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-600 italic text-center">
+                    {set.rpe <= 4 ? 'Fácil — muchas reps en reserva' :
+                     set.rpe <= 6 ? 'Moderado — unas 4 reps en reserva' :
+                     set.rpe <= 8 ? 'Duro — 1-2 reps en reserva' :
+                     'Máximo — sin reserva'}
+                  </p>
+                </div>
               </div>
             ))}
-          </div>
 
-          <button onClick={() => addSet(entry.uid)}
-            className="w-full py-2 rounded-lg border border-dashed border-gray-700 text-gray-500 hover:border-blue-600 hover:text-blue-400 text-sm transition-colors">
-            + Agregar serie
-          </button>
-        </Card>
+            {/* Agregar serie */}
+            <button onClick={() => addSet(entry.uid)}
+              className="w-full py-3 rounded-xl border border-dashed border-gray-700 text-gray-500 hover:border-blue-600 hover:text-blue-400 text-sm transition-colors active:scale-[0.98]">
+              + Agregar serie
+            </button>
+          </div>
+        </div>
       ))}
 
       {/* Agregar ejercicio */}
       <button onClick={addExercise}
-        className="w-full py-3 rounded-xl border border-dashed border-gray-700 text-gray-400 hover:border-blue-600 hover:text-blue-400 font-medium transition-colors">
+        className="w-full py-4 rounded-2xl border border-dashed border-gray-700 text-gray-400 hover:border-blue-600 hover:text-blue-400 font-medium transition-colors active:scale-[0.98]">
         💪 Agregar otro ejercicio
       </button>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-800 rounded-lg px-4 py-3 text-sm text-red-300">{error}</div>
+        <div className="bg-red-900/30 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300">{error}</div>
       )}
 
-      <Button onClick={handleSave} loading={saving} size="lg" className="w-full">
-        Guardar sesión · {totalSets} series
-      </Button>
+      {/* Guardar */}
+      <button onClick={handleSave} disabled={saving}
+        className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 active:scale-[0.98] text-white font-bold text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20">
+        {saving ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Guardando...
+          </span>
+        ) : `Guardar sesión · ${totalSets} serie${totalSets !== 1 ? 's' : ''}`}
+      </button>
     </div>
   )
 }

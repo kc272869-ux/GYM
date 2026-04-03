@@ -1,13 +1,8 @@
 /**
- * pages/HistoryPage.jsx
- * ---------------------
- * Muestra el historial de sesiones guardadas.
- * Cada sesión = tarjeta colapsable con sus ejercicios y series.
+ * pages/HistoryPage.jsx — optimizado para iPhone
  */
 import { useState, useMemo } from 'react'
 import { useSessions } from '../hooks/useSessions'
-import { useExercises } from '../hooks/useExercises'
-import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import Select from '../components/ui/Select'
 import { format } from 'date-fns'
@@ -15,24 +10,32 @@ import { es } from 'date-fns/locale'
 
 const rpeBadgeColor = (rpe) => rpe <= 6 ? 'green' : rpe <= 8 ? 'yellow' : 'red'
 
+function groupByExercise(logs) {
+  const map = {}
+  for (const l of logs) {
+    if (!map[l.exercise_id]) {
+      map[l.exercise_id] = { name: l.exercises?.name ?? '—', muscleGroup: l.exercises?.muscle_group ?? '', sets: [] }
+    }
+    map[l.exercise_id].sets.push(l)
+  }
+  return Object.values(map)
+}
+
 export default function HistoryPage() {
   const { sessions, loading, deleteSession } = useSessions()
-  const { exercises } = useExercises()
-  const [filterDays, setFilterDays]   = useState('all')
-  const [expandedId, setExpandedId]   = useState(null)
-  const [deletingId, setDeletingId]   = useState(null)
+  const [filterDays, setFilterDays] = useState('all')
+  const [expandedId, setExpandedId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
-  // Filtrar por fecha
   const filtered = useMemo(() => sessions.filter(s => {
     if (filterDays === 'all') return true
     const diff = (Date.now() - new Date(s.logged_at)) / (1000 * 60 * 60 * 24)
     return diff <= parseInt(filterDays)
   }), [sessions, filterDays])
 
-  // Abrir la primera sesión por defecto
-  const firstId   = filtered[0]?.id
-  const isOpen    = (id) => expandedId !== null ? expandedId === id : id === firstId
-  const toggle    = (id) => setExpandedId(prev => prev === id ? null : id)
+  const firstId = filtered[0]?.id
+  const isOpen  = (id) => expandedId !== null ? expandedId === id : id === firstId
+  const toggle  = (id) => setExpandedId(prev => prev === id ? null : id)
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta sesión y todas sus series?')) return
@@ -41,49 +44,36 @@ export default function HistoryPage() {
     setDeletingId(null)
   }
 
-  // Agrupar workout_logs de la sesión por ejercicio
-  const groupByExercise = (logs) => {
-    const map = {}
-    for (const l of logs) {
-      if (!map[l.exercise_id]) {
-        map[l.exercise_id] = {
-          name:        l.exercises?.name ?? '—',
-          muscleGroup: l.exercises?.muscle_group ?? '',
-          sets:        [],
-        }
-      }
-      map[l.exercise_id].sets.push(l)
-    }
-    return Object.values(map)
-  }
-
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 pt-4 pb-6 space-y-4">
 
-      {/* Encabezado */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">📋 Historial</h1>
-          <p className="text-gray-500 text-sm mt-1">{filtered.length} sesión{filtered.length !== 1 ? 'es' : ''}</p>
+          <h1 className="text-xl font-bold text-white">📋 Historial</h1>
+          <p className="text-gray-500 text-xs mt-0.5">{filtered.length} sesión{filtered.length !== 1 ? 'es' : ''}</p>
         </div>
-        <Select value={filterDays} onChange={e => setFilterDays(e.target.value)} className="w-44">
-          <option value="all">Todas las fechas</option>
-          <option value="7">Última semana</option>
-          <option value="30">Último mes</option>
-          <option value="90">Últimos 3 meses</option>
-        </Select>
+        <select
+          value={filterDays}
+          onChange={e => setFilterDays(e.target.value)}
+          className="px-3 py-2 rounded-xl border bg-gray-900 border-gray-700 text-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Todas</option>
+          <option value="7">7 días</option>
+          <option value="30">30 días</option>
+          <option value="90">3 meses</option>
+        </select>
       </div>
 
-      {/* Lista */}
       {loading ? (
-        <div className="space-y-4">
-          {[1,2,3].map(i => <div key={i} className="h-24 bg-gray-800 rounded-2xl animate-pulse" />)}
+        <div className="space-y-3">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-gray-800 rounded-2xl animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="text-center py-14">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl py-14 text-center text-gray-600">
           <p className="text-4xl mb-3">📭</p>
-          <p className="text-gray-400">No hay sesiones aún</p>
-        </Card>
+          <p className="text-sm">No hay sesiones aún</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(session => {
@@ -91,108 +81,94 @@ export default function HistoryPage() {
             const logs        = session.workout_logs ?? []
             const exerciseMap = groupByExercise(logs)
             const muscles     = [...new Set(exerciseMap.map(e => e.muscleGroup))]
-            const totalSets   = logs.length
 
             return (
-              <div key={session.id} className={`
-                border rounded-2xl overflow-hidden transition-colors
-                ${open ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/60 border-gray-800 hover:border-gray-700'}
-              `}>
+              <div key={session.id} className={`border rounded-2xl overflow-hidden transition-colors ${
+                open ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/60 border-gray-800'
+              }`}>
 
-                {/* Cabecera */}
-                <div className="flex items-center gap-3 px-5 py-4">
-                  {/* Toggle */}
-                  <button onClick={() => toggle(session.id)} className="flex-1 flex items-center gap-4 text-left min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-lg transition-colors ${open ? 'bg-blue-600' : 'bg-gray-800'}`}>
-                      🏋️
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white truncate">{session.name || 'Sesión'}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 capitalize">
-                        {format(new Date(session.logged_at), "EEEE d 'de' MMMM · HH:mm", { locale: es })}
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Badges de músculos */}
-                  <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                    {muscles.slice(0, 3).map(m => <Badge key={m} color="blue">{m}</Badge>)}
+                {/* Cabecera — tap para expandir */}
+                <button
+                  onClick={() => toggle(session.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-gray-800/40 transition-colors text-left"
+                >
+                  {/* Ícono */}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${open ? 'bg-blue-600' : 'bg-gray-800'}`}>
+                    🏋️
                   </div>
 
-                  {/* Stats + controles */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-sm font-bold text-white">{exerciseMap.length} ej.</p>
-                      <p className="text-xs text-gray-600">{totalSets} series</p>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm truncate">{session.name || 'Sesión'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 capitalize">
+                      {format(new Date(session.logged_at), "EEEE d 'de' MMMM · HH:mm", { locale: es })}
+                    </p>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {muscles.slice(0,3).map(m => <Badge key={m} color="blue">{m}</Badge>)}
                     </div>
-                    <button onClick={() => handleDelete(session.id)} disabled={deletingId === session.id}
-                      className="text-gray-700 hover:text-red-400 transition-colors text-base p-1"
-                      title="Eliminar sesión">
-                      {deletingId === session.id ? '⏳' : '🗑️'}
-                    </button>
-                    <button onClick={() => toggle(session.id)}
-                      className={`text-gray-500 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
-                      ▼
-                    </button>
                   </div>
-                </div>
 
-                {/* Detalle */}
-                {open && exerciseMap.length > 0 && (
+                  {/* Counts + flecha */}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <p className="text-xs text-gray-500">{exerciseMap.length} ej. · {logs.length} series</p>
+                    <span className={`text-gray-600 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▼</span>
+                  </div>
+                </button>
+
+                {/* Detalle expandido */}
+                {open && (
                   <div className="border-t border-gray-800">
                     {exerciseMap.map((ex, i) => (
-                      <div key={i} className={`px-5 py-4 ${i < exerciseMap.length - 1 ? 'border-b border-gray-800/60' : ''}`}>
+                      <div key={i} className={`px-4 py-4 ${i < exerciseMap.length - 1 ? 'border-b border-gray-800/60' : ''}`}>
 
-                        {/* Nombre ejercicio */}
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-sm font-semibold text-gray-200">{ex.name}</span>
+                          <p className="font-semibold text-gray-200 text-sm">{ex.name}</p>
                           <Badge color="gray">{ex.muscleGroup}</Badge>
                         </div>
 
-                        {/* Tabla series */}
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-xs text-gray-600">
-                                <th className="text-center pb-2 font-medium w-10">#</th>
-                                <th className="text-center pb-2 font-medium">Peso</th>
-                                <th className="text-center pb-2 font-medium">Reps</th>
-                                <th className="text-center pb-2 font-medium">Vol.</th>
-                                <th className="text-center pb-2 font-medium">RPE</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-800/50">
-                              {ex.sets.map((set, si) => (
-                                <tr key={set.id} className="hover:bg-gray-800/30 transition-colors">
-                                  <td className="text-center py-2 text-gray-600 font-bold text-xs">{si + 1}</td>
-                                  <td className="text-center py-2 font-bold text-white">
-                                    {set.weight_kg} <span className="text-gray-500 font-normal text-xs">kg</span>
-                                  </td>
-                                  <td className="text-center py-2 text-gray-300">{set.reps}</td>
-                                  <td className="text-center py-2 text-gray-500 text-xs">
-                                    {(set.weight_kg * set.reps).toFixed(0)} kg
-                                  </td>
-                                  <td className="text-center py-2">
-                                    <Badge color={rpeBadgeColor(set.rpe)}>{set.rpe}</Badge>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            {/* Totales del ejercicio */}
-                            <tfoot>
-                              <tr className="text-xs text-gray-600 border-t border-gray-800">
-                                <td colSpan={2} className="pt-2 text-left">Total</td>
-                                <td className="text-center pt-2">{ex.sets.reduce((s, l) => s + l.reps, 0)} reps</td>
-                                <td className="text-center pt-2 font-semibold text-gray-500">
-                                  {ex.sets.reduce((s, l) => s + l.weight_kg * l.reps, 0).toFixed(0)} kg
-                                </td>
-                                <td />
-                              </tr>
-                            </tfoot>
-                          </table>
+                        {/* Tabla */}
+                        <div className="bg-gray-800/60 rounded-xl overflow-hidden">
+                          <div className="grid grid-cols-4 px-3 py-2 border-b border-gray-700/50">
+                            {['#', 'Peso', 'Reps', 'RPE'].map(h => (
+                              <span key={h} className="text-xs text-gray-600 font-medium text-center">{h}</span>
+                            ))}
+                          </div>
+                          {ex.sets.map((set, si) => (
+                            <div key={set.id} className="grid grid-cols-4 px-3 py-2.5 border-b border-gray-700/20 last:border-0">
+                              <span className="text-xs text-gray-600 text-center font-bold">{si + 1}</span>
+                              <span className="text-sm font-bold text-white text-center">
+                                {set.weight_kg}<span className="text-gray-600 font-normal text-xs"> kg</span>
+                              </span>
+                              <span className="text-sm text-gray-300 text-center">{set.reps}</span>
+                              <div className="flex justify-center">
+                                <Badge color={rpeBadgeColor(set.rpe)}>{set.rpe}</Badge>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Total volumen */}
+                          <div className="grid grid-cols-4 px-3 py-2 bg-gray-700/20">
+                            <span className="text-xs text-gray-600 col-span-2 text-center">Volumen total</span>
+                            <span className="text-xs font-bold text-gray-400 text-center">
+                              {ex.sets.reduce((s, l) => s + l.reps, 0)} reps
+                            </span>
+                            <span className="text-xs font-bold text-blue-400 text-center">
+                              {ex.sets.reduce((s, l) => s + l.weight_kg * l.reps, 0).toFixed(0)} kg
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
+
+                    {/* Borrar sesión */}
+                    <div className="px-4 py-3 border-t border-gray-800">
+                      <button
+                        onClick={() => handleDelete(session.id)}
+                        disabled={deletingId === session.id}
+                        className="w-full py-2.5 rounded-xl border border-red-900/50 text-red-500 hover:bg-red-900/20 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {deletingId === session.id ? '⏳ Eliminando...' : '🗑️ Eliminar sesión'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

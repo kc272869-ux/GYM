@@ -1,22 +1,33 @@
-/* Las 3 directivas de Tailwind — deben ir al inicio del CSS global */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Fuente Inter desde Google Fonts (se carga en index.html) */
 @layer base {
-  body {
-    @apply font-sans bg-gray-950 text-gray-100 min-h-screen;
+  /* Safe area de iPhone (notch + home bar) */
+  :root {
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* Scrollbar personalizado para un look más limpio */
-  ::-webkit-scrollbar {
-    width: 6px;
+  html {
+    /* Evita el zoom al hacer tap en inputs en iOS */
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-900;
+
+  body {
+    @apply font-sans bg-gray-950 text-gray-100;
+    /* Reserva espacio para la barra de navegación inferior (60px) + safe area */
+    padding-bottom: calc(60px + var(--safe-bottom));
   }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full;
+
+  /* Scrollbar sutil en desktop */
+  ::-webkit-scrollbar        { width: 4px; }
+  ::-webkit-scrollbar-track  { @apply bg-gray-900; }
+  ::-webkit-scrollbar-thumb  { @apply bg-gray-700 rounded-full; }
+
+  /* Inputs y selects: mínimo 16px para evitar zoom en iOS */
+  input, select, textarea {
+    font-size: 16px !important;
   }
 }
