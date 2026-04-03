@@ -26,8 +26,12 @@ export function useExercises() {
       .or(`user_id.eq.${user.id},user_id.is.null`)  // propios O globales
       .order('name')
 
-    if (error) setError(error.message)
-    else setExercises(data)
+    if (error) {
+      console.warn('useExercises error:', error.message)
+      setError(error.message)
+    } else {
+      setExercises(data ?? [])
+    }
     setLoading(false)
   }
 

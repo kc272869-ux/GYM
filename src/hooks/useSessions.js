@@ -37,7 +37,13 @@ export function useSessions() {
       .eq('user_id', user.id)
       .order('logged_at', { ascending: false })
 
-    if (!error) setSessions(data ?? [])
+    if (error) {
+      // Si la tabla sessions aún no existe en Supabase, no crashear — solo mostrar vacío
+      console.warn('useSessions error (¿ejecutaste supabase_sessions.sql?):', error.message)
+      setSessions([])
+    } else {
+      setSessions(data ?? [])
+    }
     setLoading(false)
   }
 

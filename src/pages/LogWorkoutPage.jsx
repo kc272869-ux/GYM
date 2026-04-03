@@ -18,8 +18,11 @@ const rpeColor = (n) => {
 }
 const rpeColorInactive = 'bg-gray-800 text-gray-600 border-gray-700'
 
-const newSet   = (prev = null) => ({ id: crypto.randomUUID(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
-const newEntry = ()            => ({ uid: crypto.randomUUID(), exerciseId: '', sets: [newSet()] })
+// Generador de ID simple que funciona en HTTP y HTTPS (crypto.randomUUID requiere HTTPS)
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
+const newEntry = ()            => ({ uid: uid(), exerciseId: '', sets: [newSet()] })
 
 export default function LogWorkoutPage() {
   const navigate = useNavigate()

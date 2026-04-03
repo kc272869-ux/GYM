@@ -10,6 +10,7 @@
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Páginas
 import AuthPage      from './components/auth/AuthPage'
@@ -79,6 +80,7 @@ function AuthRoute() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -87,5 +89,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }

@@ -33,8 +33,12 @@ export function useWorkouts(exerciseId = null) {
 
     const { data, error } = await query
 
-    if (error) setError(error.message)
-    else setWorkouts(data)
+    if (error) {
+      console.warn('useWorkouts error:', error.message)
+      setError(error.message)
+    } else {
+      setWorkouts(data ?? [])
+    }
     setLoading(false)
   }
 
