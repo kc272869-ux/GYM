@@ -1,29 +1,135 @@
 /**
  * pages/LogWorkoutPage.jsx
  * ------------------------
- * Formulario de sesión — optimizado para touch en iPhone.
- * Inputs grandes, RPE con botones en lugar de select, feedback táctil.
+ * - Selector de ejercicio con búsqueda por texto
+ * - RPE solo del 6 al 10 como chips compactos con descripción al elegir
  */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions } from '../hooks/useSessions'
 
-// Color del RPE como fondo de botón
-const rpeColor = (n) => {
-  if (n <= 4)  return 'bg-green-700 text-green-100 border-green-600'
-  if (n <= 6)  return 'bg-yellow-700 text-yellow-100 border-yellow-600'
-  if (n <= 8)  return 'bg-orange-700 text-orange-100 border-orange-600'
-  return              'bg-red-700 text-red-100 border-red-600'
-}
-const rpeColorInactive = 'bg-gray-800 text-gray-600 border-gray-700'
-
-// Generador de ID simple que funciona en HTTP y HTTPS (crypto.randomUUID requiere HTTPS)
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
 const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
 const newEntry = ()            => ({ uid: uid(), exerciseId: '', sets: [newSet()] })
 
+// Solo RPE 6-10 con colores y etiquetas
+const RPE_OPTIONS = [
+  { value: 6,  label: '6',  desc: 'Moderado',    color: 'bg-yellow-600 border-yellow-500 text-white' },
+  { value: 7,  label: '7',  desc: 'Duro',         color: 'bg-orange-500 border-orange-400 text-white' },
+  { value: 8,  label: '8',  desc: 'Muy duro',     color: 'bg-orange-600 border-orange-500 text-white' },
+  { value: 9,  label: '9',  desc: 'Casi máximo',  color: 'bg-red-600 border-red-500 text-white' },
+  { value: 10, label: '10', desc: 'Máximo',       color: 'bg-red-700 border-red-600 text-white' },
+]
+const rpeInactive = 'bg-gray-800 border-gray-700 text-gray-400'
+
+// ── Componente selector de ejercicio con búsqueda ────────────────────────────
+function ExerciseSearch({ exercises, value, onChange }) {
+  const [query, setQuery]     = useState('')
+  const [open, setOpen]       = useState(false)
+  const ref                   = useRef(null)
+
+  // Nombre del ejercicio seleccionado
+  const selected = exercises.find(e => e.id === value)
+
+  // Filtrar por nombre o grupo muscular
+  const filtered = query.trim()
+    ? exercises.filter(e =>
+        e.name.toLowerCase().includes(query.toLowerCase()) ||
+        e.muscle_group.toLowerCase().includes(query.toLowerCase())
+      )
+    : exercises
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const pick = (ex) => {
+    onChange(ex.id)
+    setQuery('')
+    setOpen(false)
+  }
+
+  // Agrupar ejercicios por músculo para mostrar secciones
+  const grouped = filtered.reduce((acc, ex) => {
+    if (!acc[ex.muscle_group]) acc[ex.muscle_group] = []
+    acc[ex.muscle_group].push(ex)
+    return acc
+  }, {})
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Campo — muestra el seleccionado o el buscador */}
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setQuery('') }}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors
+          ${open ? 'border-blue-500 bg-gray-800' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}
+        `}
+      >
+        {selected ? (
+          <span className="text-white font-medium text-sm">{selected.name}
+            <span className="text-gray-500 font-normal ml-1.5 text-xs">({selected.muscle_group})</span>
+          </span>
+        ) : (
+          <span className="text-gray-500 text-sm">— Selecciona un ejercicio —</span>
+        )}
+        <span className={`text-gray-500 text-xs transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
+          {/* Buscador */}
+          <div className="p-3 border-b border-gray-800">
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscar ejercicio o músculo..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+
+          {/* Lista */}
+          <div className="max-h-64 overflow-y-auto">
+            {Object.keys(grouped).length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-6">Sin resultados</p>
+            ) : (
+              Object.entries(grouped).map(([muscle, exs]) => (
+                <div key={muscle}>
+                  {/* Cabecera de grupo */}
+                  <p className="px-4 py-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-950/50 sticky top-0">
+                    {muscle}
+                  </p>
+                  {exs.map(ex => (
+                    <button
+                      key={ex.id}
+                      type="button"
+                      onClick={() => pick(ex)}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors active:bg-gray-700
+                        ${ex.id === value ? 'bg-blue-900/40 text-blue-300' : 'text-gray-200 hover:bg-gray-800'}
+                      `}
+                    >
+                      {ex.name}
+                      {ex.id === value && <span className="ml-2 text-blue-400 text-xs">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function LogWorkoutPage() {
   const navigate = useNavigate()
   const { exercises } = useExercises()
@@ -35,7 +141,6 @@ export default function LogWorkoutPage() {
   const [error, setError]             = useState('')
   const [success, setSuccess]         = useState(false)
 
-  // ── helpers ──────────────────────────────────────────────────────────────
   const setExercise = (uid, exerciseId) =>
     setSession(p => p.map(e => e.uid === uid ? { ...e, exerciseId } : e))
 
@@ -57,7 +162,6 @@ export default function LogWorkoutPage() {
   const addExercise    = () => setSession(p => [...p, newEntry()])
   const removeExercise = (uid) => session.length > 1 && setSession(p => p.filter(e => e.uid !== uid))
 
-  // ── guardar ───────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setError('')
     for (const entry of session) {
@@ -97,63 +201,48 @@ export default function LogWorkoutPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
 
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-white">➕ Nueva sesión</h1>
         <p className="text-gray-500 text-xs mt-0.5">{session.length} ejercicio{session.length > 1 ? 's' : ''} · {totalSets} series</p>
       </div>
 
-      {/* Nombre de la sesión */}
       <input
         type="text"
-        placeholder='Nombre (ej: "Día A — Pecho") — opcional'
+        placeholder='Nombre de la sesión — opcional'
         value={sessionName}
         onChange={e => setSessionName(e.target.value)}
         className="w-full px-4 py-3 rounded-xl border bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
-      {/* Bloques */}
       {session.map((entry, exIdx) => (
         <div key={entry.uid} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
 
-          {/* Header bloque */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ejercicio {exIdx + 1}</span>
             {session.length > 1 && (
-              <button onClick={() => removeExercise(entry.uid)} className="text-xs text-red-500 hover:text-red-400">
-                Eliminar
-              </button>
+              <button onClick={() => removeExercise(entry.uid)} className="text-xs text-red-500">Eliminar</button>
             )}
           </div>
 
-          {/* Selector ejercicio */}
           <div className="px-4 pt-3 pb-2">
-            <select
+            <ExerciseSearch
+              exercises={exercises}
               value={entry.exerciseId}
-              onChange={e => setExercise(entry.uid, e.target.value)}
-              className="w-full px-3 py-3 rounded-xl border bg-gray-800 border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Selecciona un ejercicio —</option>
-              {exercises.map(ex => (
-                <option key={ex.id} value={ex.id}>{ex.name} ({ex.muscle_group})</option>
-              ))}
-            </select>
+              onChange={(id) => setExercise(entry.uid, id)}
+            />
           </div>
 
-          {/* Series */}
           <div className="px-4 pb-3 space-y-3">
             {entry.sets.map((set, si) => (
               <div key={set.id} className="bg-gray-800 rounded-xl p-3 space-y-3">
-                {/* Número de serie y botón borrar */}
+
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-500">Serie {si + 1}</span>
                   <button onClick={() => removeSet(entry.uid, set.id)} disabled={entry.sets.length === 1}
-                    className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm p-1 -m-1 transition-colors">
-                    ✕
-                  </button>
+                    className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm transition-colors">✕</button>
                 </div>
 
-                {/* Peso y Reps en 2 columnas grandes */}
+                {/* Peso y Reps */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs text-gray-500 font-medium">Peso (kg)</label>
@@ -175,38 +264,36 @@ export default function LogWorkoutPage() {
                   </div>
                 </div>
 
-                {/* RPE — botones grandes para touch fácil */}
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-500 font-medium">
-                    Esfuerzo (RPE) — <span className={`font-bold ${
-                      set.rpe <= 4 ? 'text-green-400' : set.rpe <= 6 ? 'text-yellow-400' : set.rpe <= 8 ? 'text-orange-400' : 'text-red-400'
-                    }`}>{set.rpe}/10</span>
-                  </label>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                {/* RPE 6-10 compacto */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-gray-500 font-medium">Esfuerzo (RPE)</label>
+                    {/* Descripción del RPE elegido */}
+                    <span className={`text-xs font-semibold ${
+                      set.rpe <= 7 ? 'text-yellow-400' : set.rpe <= 8 ? 'text-orange-400' : 'text-red-400'
+                    }`}>
+                      {RPE_OPTIONS.find(r => r.value === set.rpe)?.desc ?? ''}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {RPE_OPTIONS.map(r => (
                       <button
-                        key={n}
+                        key={r.value}
                         type="button"
-                        onClick={() => updateSet(entry.uid, set.id, 'rpe', n)}
-                        className={`h-10 rounded-lg text-sm font-bold border transition-all active:scale-95 ${
-                          set.rpe === n ? rpeColor(n) : rpeColorInactive
+                        onClick={() => updateSet(entry.uid, set.id, 'rpe', r.value)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
+                          set.rpe === r.value ? r.color : rpeInactive
                         }`}
                       >
-                        {n}
+                        {r.label}
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-600 italic text-center">
-                    {set.rpe <= 4 ? 'Fácil — muchas reps en reserva' :
-                     set.rpe <= 6 ? 'Moderado — unas 4 reps en reserva' :
-                     set.rpe <= 8 ? 'Duro — 1-2 reps en reserva' :
-                     'Máximo — sin reserva'}
-                  </p>
                 </div>
+
               </div>
             ))}
 
-            {/* Agregar serie */}
             <button onClick={() => addSet(entry.uid)}
               className="w-full py-3 rounded-xl border border-dashed border-gray-700 text-gray-500 hover:border-blue-600 hover:text-blue-400 text-sm transition-colors active:scale-[0.98]">
               + Agregar serie
@@ -215,7 +302,6 @@ export default function LogWorkoutPage() {
         </div>
       ))}
 
-      {/* Agregar ejercicio */}
       <button onClick={addExercise}
         className="w-full py-4 rounded-2xl border border-dashed border-gray-700 text-gray-400 hover:border-blue-600 hover:text-blue-400 font-medium transition-colors active:scale-[0.98]">
         💪 Agregar otro ejercicio
@@ -225,9 +311,8 @@ export default function LogWorkoutPage() {
         <div className="bg-red-900/30 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300">{error}</div>
       )}
 
-      {/* Guardar */}
       <button onClick={handleSave} disabled={saving}
-        className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 active:scale-[0.98] text-white font-bold text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20">
+        className="w-full py-4 rounded-2xl bg-blue-600 active:bg-blue-700 active:scale-[0.98] text-white font-bold text-base transition-all disabled:opacity-60 shadow-lg shadow-blue-500/20">
         {saving ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
