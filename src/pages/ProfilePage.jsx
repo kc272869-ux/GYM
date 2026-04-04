@@ -56,15 +56,6 @@ export default function ProfilePage() {
   }
 
   // IMC calculado en tiempo real
-  const imc = form.weight_kg && form.height_cm
-    ? (parseFloat(form.weight_kg) / Math.pow(parseInt(form.height_cm) / 100, 2)).toFixed(1)
-    : null
-  const imcLabel = imc
-    ? imc < 18.5 ? { text: 'Bajo peso', color: 'text-blue-400' }
-    : imc < 25   ? { text: 'Normal',    color: 'text-green-400' }
-    : imc < 30   ? { text: 'Sobrepeso', color: 'text-yellow-400' }
-    :              { text: 'Obesidad',  color: 'text-red-400' }
-    : null
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-4 pb-6 space-y-5">
@@ -129,15 +120,7 @@ export default function ProfilePage() {
               </Field>
             </div>
 
-            {/* IMC en tiempo real */}
-            {imcLabel && (
-              <div className="flex items-center justify-between bg-gray-800/60 rounded-xl px-4 py-3">
-                <span className="text-xs text-gray-500">IMC calculado</span>
-                <span className={`font-bold text-sm ${imcLabel.color}`}>
-                  {imc} — {imcLabel.text}
-                </span>
-              </div>
-            )}
+
 
             {/* Botón guardar */}
             <button onClick={handleSave} disabled={saving}
