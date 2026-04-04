@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useProfile } from '../hooks/useProfile'
 import { useWorkouts } from '../hooks/useWorkouts'
 import { useSessions } from '../hooks/useSessions'
 import Badge from '../components/ui/Badge'
@@ -156,21 +157,21 @@ function DayDetail({ day, sessions }) {
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user }                        = useAuth()
-  const { workouts, loading: loadingW } = useWorkouts()
+  const { profile }                     = useProfile()
+  const { loading: loadingW } = useWorkouts()
   const { sessions, loading: loadingS } = useSessions()
   const [selectedDay, setSelectedDay]   = useState(null)
 
-  const username = user?.email?.split('@')[0]
-  const loading  = loadingW || loadingS
+  const displayName = profile?.full_name || user?.email?.split('@')[0]
+  const loading     = loadingW || loadingS
 
   const stats = useMemo(() => {
     const thisWeek = sessions.filter(s => {
       const diff = (Date.now() - new Date(s.logged_at)) / (1000 * 60 * 60 * 24)
       return diff <= 7
     }).length
-    const exercises = new Set(workouts.map(w => w.exercise_id)).size
-    return { sessions: sessions.length, thisWeek, exercises }
-  }, [sessions, workouts])
+    return { thisWeek }
+  }, [sessions])
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-4 pb-6 space-y-5">
@@ -179,13 +180,7 @@ export default function DashboardPage() {
       <div className="relative bg-gradient-to-br from-blue-600/20 via-gray-900 to-purple-600/10 border border-gray-800 rounded-2xl px-5 py-5 overflow-hidden">
         <div className="absolute right-0 top-0 w-48 h-48 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-1">Hola 👋</p>
-        <h1 className="text-2xl font-bold text-white">{username}</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          {stats.sessions === 0
-            ? '¡Empieza tu primer entrenamiento!'
-            : `${stats.sessions} sesión${stats.sessions !== 1 ? 'es' : ''} registrada${stats.sessions !== 1 ? 's' : ''}`
-          }
-        </p>
+        <h1 className="text-2xl font-bold text-white">{displayName}</h1>
         {sessions.length === 0 && !loading && (
           <Link to="/log" className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all">
             ➕ Primera sesión
@@ -194,18 +189,12 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { value: stats.sessions,  label: 'Sesiones',    color: 'text-blue-400',   bg: 'bg-blue-500/10',   icon: '📅' },
-          { value: stats.thisWeek,  label: 'Esta semana', color: 'text-orange-400', bg: 'bg-orange-500/10', icon: '🔥' },
-          { value: stats.exercises, label: 'Ejercicios',  color: 'text-purple-400', bg: 'bg-purple-500/10', icon: '💪' },
-        ].map(s => (
-          <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-3 flex flex-col items-center gap-1">
-            <span className={`text-xl ${s.bg} w-10 h-10 rounded-xl flex items-center justify-center`}>{s.icon}</span>
-            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[11px] text-gray-500 text-center leading-tight">{s.label}</p>
-          </div>
-        ))}
+      <div className="flex justify-center">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 w-36">
+          <span className="text-xl bg-orange-500/10 w-10 h-10 rounded-xl flex items-center justify-center">🔥</span>
+          <p className="text-xl font-bold text-orange-400">{stats.thisWeek}</p>
+          <p className="text-[11px] text-gray-500 text-center leading-tight">Esta semana</p>
+        </div>
       </div>
 
       {/* ── Calendario ───────────────────────────────────────────────── */}
