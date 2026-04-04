@@ -23,7 +23,7 @@ export default function AuthPage() {
         {/* Logo / Título */}
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">🏋️</div>
-          <h1 className="text-3xl font-bold text-white">GymTracker</h1>
+          <h1 className="text-3xl font-bold text-white">Heavy</h1>
           <p className="text-gray-400 mt-2">Seguimiento de progresión de fuerza</p>
         </div>
 

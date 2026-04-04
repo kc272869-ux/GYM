@@ -27,7 +27,7 @@ export default function Navbar() {
         <div className="max-w-5xl mx-auto px-4 h-14 w-full flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 font-bold text-white">
             <span className="text-xl">🏋️</span>
-            <span>GymTracker</span>
+            <span>Heavy</span>
           </NavLink>
 
           <div className="flex items-center gap-1">
@@ -114,7 +114,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between px-4 h-12">
           <NavLink to="/" className="flex items-center gap-1.5 font-bold text-white text-sm">
             <span>🏋️</span>
-            <span>GymTracker</span>
+            <span>Heavy</span>
           </NavLink>
           <button onClick={signOut}
             className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-2 py-1">
