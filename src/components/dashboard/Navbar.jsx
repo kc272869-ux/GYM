@@ -26,7 +26,7 @@ export default function Navbar() {
       <nav className="hidden md:flex bg-gray-900/80 backdrop-blur border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 w-full flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 font-bold text-white">
-            <span className="text-xl">🏋️</span>
+            <img src="/logo.jpg" alt="Heavy" className="w-7 h-7 rounded-lg object-cover" />
             <span>Heavy</span>
           </NavLink>
 
@@ -113,7 +113,7 @@ export default function Navbar() {
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="flex items-center justify-between px-4 h-12">
           <NavLink to="/" className="flex items-center gap-1.5 font-bold text-white text-sm">
-            <span>🏋️</span>
+            <img src="/logo.jpg" alt="Heavy" className="w-6 h-6 rounded-md object-cover" />
             <span>Heavy</span>
           </NavLink>
           <button onClick={signOut}

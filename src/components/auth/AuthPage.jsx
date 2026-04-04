@@ -22,7 +22,7 @@ export default function AuthPage() {
       <div className="relative w-full max-w-md">
         {/* Logo / Título */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🏋️</div>
+          <img src="/logo.jpg" alt="Heavy" className="w-20 h-20 rounded-2xl object-cover mx-auto mb-3 shadow-lg" />
           <h1 className="text-3xl font-bold text-white">Heavy</h1>
           <p className="text-gray-400 mt-2">Seguimiento de progresión de fuerza</p>
         </div>
