@@ -14,7 +14,7 @@ const navItems = [
   { to: '/history',   label: 'Historial', icon: '📋' },
   { to: '/log',       label: 'Registrar', icon: '➕', highlight: true },
   { to: '/progress',  label: 'Progreso',  icon: '📈' },
-  { to: '/exercises', label: 'Más',       icon: '⚙️' },
+  { to: '/profile',   label: 'Perfil',     icon: '👤' },
 ]
 
 export default function Navbar() {

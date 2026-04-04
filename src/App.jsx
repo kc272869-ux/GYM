@@ -20,6 +20,7 @@ import LogWorkoutPage from './pages/LogWorkoutPage'
 import HistoryPage   from './pages/HistoryPage'
 import ProgressPage  from './pages/ProgressPage'
 import RoutinesPage  from './pages/RoutinesPage'
+import ProfilePage   from './pages/ProfilePage'
 
 // Layout
 import Navbar from './components/dashboard/Navbar'
@@ -57,6 +58,7 @@ function ProtectedLayout() {
           <Route path="/history"   element={<HistoryPage />} />
           <Route path="/progress"  element={<ProgressPage />} />
           <Route path="/routines"  element={<RoutinesPage />} />
+          <Route path="/profile"   element={<ProfilePage />} />
           {/* Cualquier ruta desconocida redirige al dashboard */}
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
