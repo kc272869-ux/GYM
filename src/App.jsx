@@ -10,6 +10,7 @@
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { UnitsProvider } from './context/UnitsContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Páginas
@@ -84,12 +85,14 @@ export default function App() {
   return (
     <ErrorBoundary>
     <AuthProvider>
+    <UnitsProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute />} />
           <Route path="/*"    element={<ProtectedLayout />} />
         </Routes>
       </BrowserRouter>
+    </UnitsProvider>
     </AuthProvider>
     </ErrorBoundary>
   )

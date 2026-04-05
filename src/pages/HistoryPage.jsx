@@ -5,6 +5,7 @@
  */
 import { useState, useMemo } from 'react'
 import { useSessions } from '../hooks/useSessions'
+import { useUnits } from '../context/UnitsContext'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -58,6 +59,7 @@ function fmtDuration(sec) {
 
 export default function HistoryPage() {
   const { sessions, loading, deleteSession } = useSessions()
+  const { toDisplay, label } = useUnits()
   const [filterDays, setFilterDays] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
@@ -234,7 +236,7 @@ export default function HistoryPage() {
                                     <div key={set.id} className="grid grid-cols-4 px-3 py-2.5">
                                       <span className="text-xs text-gray-600 text-center">{si + 1}</span>
                                       <span className="text-sm font-bold text-white text-center">
-                                        {set.weight_kg}<span className="text-gray-600 font-normal text-xs">kg</span>
+                                        {toDisplay(set.weight_kg)}<span className="text-gray-600 font-normal text-xs">{label}</span>
                                       </span>
                                       <span className="text-sm text-gray-300 text-center">{set.reps}</span>
                                       <div className="flex justify-center">
@@ -249,7 +251,7 @@ export default function HistoryPage() {
                                   ))}
                                   {/* Footer volumen */}
                                   <div className="flex items-center justify-between px-3 py-2 bg-gray-900/30">
-                                    <span className="text-xs text-gray-600">{ex.sets.length} series · máx {maxW}kg</span>
+                                    <span className="text-xs text-gray-600">{ex.sets.length} series · máx {toDisplay(maxW)}{label}</span>
                                     <span className="text-xs font-bold text-purple-400">{exVol.toLocaleString()} kg vol.</span>
                                   </div>
                                 </>

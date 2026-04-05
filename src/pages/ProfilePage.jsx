@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfile } from '../hooks/useProfile'
 import { useAuth } from '../context/AuthContext'
+import { useUnits } from '../context/UnitsContext'
 
 const Field = ({ label, children }) => (
   <div className="space-y-1.5">
@@ -19,8 +20,9 @@ const Field = ({ label, children }) => (
 const inputCls = "w-full px-4 py-3 rounded-xl border bg-gray-800 border-gray-700 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
 export default function ProfilePage() {
-  const { user, signOut }          = useAuth()
+  const { user, signOut }                 = useAuth()
   const { profile, loading, saveProfile } = useProfile()
+  const { units, toggle: toggleUnits }    = useUnits()
 
   const [form, setForm]     = useState({ full_name: '', weight_kg: '', height_cm: '', age: '', sex: '' })
   const [saving, setSaving] = useState(false)
@@ -133,6 +135,19 @@ export default function ProfilePage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Unidades */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-white">Unidades de peso</p>
+          <p className="text-xs text-gray-500 mt-0.5">Afecta pesos en toda la app</p>
+        </div>
+        <button onClick={toggleUnits}
+          className="flex items-center gap-1 p-1 bg-gray-800 border border-gray-700 rounded-xl">
+          <span className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${units === 'kg' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>kg</span>
+          <span className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${units === 'lb' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>lb</span>
+        </button>
       </div>
 
       {/* Accesos rápidos */}

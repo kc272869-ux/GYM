@@ -13,6 +13,7 @@ import { useExercises } from '../hooks/useExercises'
 import { useSessions }  from '../hooks/useSessions'
 import { useWorkouts }  from '../hooks/useWorkouts'
 import { useProfile }   from '../hooks/useProfile'
+import { useUnits }     from '../context/UnitsContext'
 import { detectPRs }    from '../utils/records'
 import RestTimer        from '../components/ui/RestTimer'
 import Stopwatch        from '../components/ui/Stopwatch'
@@ -109,6 +110,7 @@ export default function LogWorkoutPage() {
   const { saveSession }          = useSessions()
   const { workouts }             = useWorkouts()
   const { profile }              = useProfile()
+  const { units, toKg, toDisplay, label } = useUnits()
 
   const [sessionName, setSessionName] = useState('')
   const [session, setSession]         = useState([newEntry()])
@@ -156,7 +158,7 @@ export default function LogWorkoutPage() {
       const exType = exercises.find(x => x.id === entry.exerciseId)?.type ?? 'weight_reps'
       return entry.sets.map((s, si) => ({
         exerciseId:   entry.exerciseId,
-        weight:       exType === 'weight_reps' ? parseFloat(s.weight) : null,
+        weight:       exType === 'weight_reps' ? toKg(s.weight) : null,
         reps:         exType === 'weight_reps' ? parseInt(s.reps)     : null,
         duration_sec: exType === 'time'        ? parseInt(s.duration_sec) : null,
         rpe:          parseInt(s.rpe),
@@ -172,7 +174,7 @@ export default function LogWorkoutPage() {
       const ex = exercises.find(x => x.id === entry.exerciseId)
       return entry.sets.map(s => ({
         exercise_id:  entry.exerciseId,
-        weight_kg:    s.weight ? parseFloat(s.weight) : null,
+        weight_kg:    s.weight ? toKg(s.weight) : null,
         reps:         s.reps   ? parseInt(s.reps)     : null,
         duration_sec: s.duration_sec ? parseInt(s.duration_sec) : null,
         rpe:          parseInt(s.rpe),
@@ -267,10 +269,10 @@ export default function LogWorkoutPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm">📈</span>
                   <p className="text-xs text-blue-300">
-                    Última vez: <span className="font-bold">{lastSession.weight_kg}kg × {lastSession.reps}</span>
+                    Última vez: <span className="font-bold">{toDisplay(lastSession.weight_kg)}{label} × {lastSession.reps}</span>
                   </p>
                 </div>
-                <p className="text-xs text-gray-600">máx {maxW}kg × {maxReps}</p>
+                <p className="text-xs text-gray-600">máx {toDisplay(maxW)}{label} × {maxReps}</p>
               </div>
             )
           })()}
@@ -296,8 +298,8 @@ export default function LogWorkoutPage() {
                     // Ejercicio de peso + reps
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs text-gray-500 font-medium">Peso (kg)</label>
-                        <input type="number" inputMode="decimal" step="0.5" min="0" placeholder="0"
+                        <label className="text-xs text-gray-500 font-medium">Peso ({label})</label>
+                        <input type="number" inputMode="decimal" step={units === 'lb' ? '1' : '0.5'} min="0" placeholder="0"
                           value={set.weight} onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
                           className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
