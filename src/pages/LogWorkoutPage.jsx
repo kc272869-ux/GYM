@@ -19,7 +19,7 @@ import Stopwatch        from '../components/ui/Stopwatch'
 import SessionSummary   from '../components/workouts/SessionSummary'
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
-const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7, duration_sec: prev?.duration_sec ?? '' })
+const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7, duration_sec: '' })
 const newEntry = ()            => ({ uid: uid(), exerciseId: '', sets: [newSet()] })
 
 const RPE_OPTIONS = [

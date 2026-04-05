@@ -1,8 +1,9 @@
 /**
  * components/ui/Stopwatch.jsx
  * ---------------------------
- * Cronómetro activo para ejercicios de tiempo.
- * El usuario inicia, pausa y guarda el tiempo registrado.
+ * Cronómetro para ejercicios de tiempo.
+ * Usa Date.now() para calcular el tiempo real transcurrido,
+ * así funciona correctamente aunque el usuario salga de la app en móvil.
  */
 import { useState, useEffect, useRef } from 'react'
 
@@ -12,69 +13,75 @@ const fmt = (sec) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export default function Stopwatch({ value, onChange }) {
-  const [elapsed, setElapsed] = useState(value ?? 0)
-  const [running, setRunning] = useState(false)
-  const intervalRef           = useRef(null)
+export default function Stopwatch({ onChange }) {
+  const [elapsed, setElapsed]   = useState(0)   // segundos mostrados
+  const [running, setRunning]   = useState(false)
+  const [saved,   setSaved]     = useState(false)
+  const startRef                = useRef(null)  // timestamp de inicio
+  const baseRef                 = useRef(0)     // segundos acumulados antes de pausar
+  const rafRef                  = useRef(null)
 
-  // Si ya hay un valor guardado, mostrarlo
-  useEffect(() => {
-    if (value && !running) setElapsed(value)
-  }, [value])
-
-  useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setElapsed(e => e + 1)
-      }, 1000)
-    } else {
-      clearInterval(intervalRef.current)
-    }
-    return () => clearInterval(intervalRef.current)
-  }, [running])
-
-  const handleStartStop = () => {
-    if (running) {
-      // Al parar, guardar el tiempo
-      setRunning(false)
-      onChange(elapsed)
-    } else {
-      setRunning(true)
-    }
+  const tick = () => {
+    const now   = Date.now()
+    const total = baseRef.current + Math.floor((now - startRef.current) / 1000)
+    setElapsed(total)
+    rafRef.current = requestAnimationFrame(tick)
   }
 
-  const handleReset = () => {
+  const start = () => {
+    startRef.current = Date.now()
+    setSaved(false)
+    setRunning(true)
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  const stop = () => {
+    cancelAnimationFrame(rafRef.current)
+    // Calcular tiempo final con Date.now() para capturar tiempo en background
+    const final = baseRef.current + Math.floor((Date.now() - startRef.current) / 1000)
+    baseRef.current = final
+    setElapsed(final)
     setRunning(false)
-    setElapsed(0)
-    onChange(0)
+    setSaved(true)
+    onChange(final)
   }
 
-  const saved = !running && elapsed > 0
+  const reset = () => {
+    cancelAnimationFrame(rafRef.current)
+    baseRef.current = 0
+    startRef.current = null
+    setElapsed(0)
+    setRunning(false)
+    setSaved(false)
+    onChange(null)
+  }
+
+  // Limpieza al desmontar
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   return (
     <div className="space-y-3">
       {/* Display */}
       <div className={`rounded-2xl py-5 flex flex-col items-center gap-1 transition-colors ${
-        running ? 'bg-blue-600/20 border border-blue-500/40' : saved ? 'bg-green-600/15 border border-green-500/30' : 'bg-gray-900/60 border border-gray-700'
+        running ? 'bg-blue-600/20 border border-blue-500/40'
+        : saved  ? 'bg-green-600/15 border border-green-500/30'
+                 : 'bg-gray-900/60 border border-gray-700'
       }`}>
         <p className={`text-5xl font-bold tabular-nums tracking-tight transition-colors ${
           running ? 'text-blue-300' : saved ? 'text-green-400' : 'text-gray-500'
         }`}>
           {fmt(elapsed)}
         </p>
-        {saved && (
-          <p className="text-xs text-green-500 font-medium">Guardado ✓</p>
-        )}
-        {running && (
-          <p className="text-xs text-blue-400 animate-pulse">En curso...</p>
-        )}
+        {saved   && <p className="text-xs text-green-500 font-medium">Guardado ✓</p>}
+        {running && <p className="text-xs text-blue-400 animate-pulse">En curso...</p>}
+        {!running && !saved && elapsed === 0 && <p className="text-xs text-gray-600">Listo para iniciar</p>}
       </div>
 
       {/* Controles */}
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={handleStartStop}
+          onClick={running ? stop : start}
           className={`flex-1 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
             running
               ? 'bg-red-600 hover:bg-red-500 text-white'
@@ -86,7 +93,7 @@ export default function Stopwatch({ value, onChange }) {
         {elapsed > 0 && !running && (
           <button
             type="button"
-            onClick={handleReset}
+            onClick={reset}
             className="px-4 py-3.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 text-sm font-medium active:scale-95 transition-all">
             ↺
           </button>
