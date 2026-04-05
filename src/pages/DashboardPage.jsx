@@ -257,38 +257,31 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Stat: Esta semana ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1">
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-orange-500/15 flex items-center justify-center text-2xl shrink-0">🔥</div>
-          <div>
-            <p className="text-3xl font-bold text-orange-400 leading-none">{thisWeek}</p>
-            <p className="text-xs text-gray-500 mt-1">sesiones esta semana</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Músculos esta semana ───────────────────────────────────────── */}
+      {/* ── Esta semana (stat + músculos unificados) ───────────────────── */}
       {thisWeek > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Músculos esta semana</p>
-          <div className="space-y-2">
-            {ALL_MUSCLES.map(({ key, dot, bar }) => {
-              const sets   = weekMuscles[key] ?? 0
-              const worked = sets > 0
-              const pct    = worked ? Math.max(8, Math.round((sets / maxSets) * 100)) : 0
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          {/* Header con stat */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Esta semana</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-orange-400 text-sm font-bold">{thisWeek}</span>
+              <span className="text-xs text-gray-500">sesiones</span>
+            </div>
+          </div>
+
+          {/* Músculos trabajados */}
+          <div className="px-5 py-3 space-y-2.5">
+            {ALL_MUSCLES.filter(({ key }) => (weekMuscles[key] ?? 0) > 0).map(({ key, dot, bar }) => {
+              const sets = weekMuscles[key]
+              const pct  = Math.max(8, Math.round((sets / maxSets) * 100))
               return (
                 <div key={key} className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${worked ? dot : 'bg-gray-800'}`} />
-                  <p className={`text-sm w-36 shrink-0 ${worked ? 'text-white font-medium' : 'text-gray-700'}`}>{key}</p>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                  <p className="text-sm text-white font-medium w-36 shrink-0">{key}</p>
                   <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    {worked && (
-                      <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
-                    )}
+                    <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
                   </div>
-                  <p className={`text-xs w-12 text-right shrink-0 tabular-nums ${worked ? 'text-gray-400' : 'text-gray-800'}`}>
-                    {worked ? `${sets} ser.` : '—'}
-                  </p>
+                  <p className="text-xs text-gray-500 w-10 text-right shrink-0 tabular-nums">{sets} ser.</p>
                 </div>
               )
             })}
