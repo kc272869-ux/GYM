@@ -211,10 +211,32 @@ export default function DashboardPage() {
   const displayName = profile?.full_name || user?.email?.split('@')[0]
   const loading     = loadingW || loadingS
 
-  const thisWeek = useMemo(() => sessions.filter(s => {
-    const diff = (Date.now() - new Date(s.logged_at)) / (1000 * 60 * 60 * 24)
-    return diff <= 7
-  }).length, [sessions])
+  const { thisWeek, weekMuscles } = useMemo(() => {
+    const weekSessions = sessions.filter(s => {
+      const diff = (Date.now() - new Date(s.logged_at)) / (1000 * 60 * 60 * 24)
+      return diff <= 7
+    })
+    const muscles = {}
+    weekSessions.forEach(s => {
+      ;(s.workout_logs ?? []).forEach(l => {
+        const m = l.exercises?.muscle_group
+        if (m) muscles[m] = (muscles[m] ?? 0) + l.sets
+      })
+    })
+    return { thisWeek: weekSessions.length, weekMuscles: muscles }
+  }, [sessions])
+
+  const ALL_MUSCLES = [
+    { key: 'Pecho',            icon: '🫀', color: 'text-blue-300',    bg: 'bg-blue-500/15'   },
+    { key: 'Espalda',          icon: '🔙', color: 'text-purple-300',  bg: 'bg-purple-500/15' },
+    { key: 'Hombros',          icon: '💪', color: 'text-cyan-300',    bg: 'bg-cyan-500/15'   },
+    { key: 'Bíceps',           icon: '💪', color: 'text-green-300',   bg: 'bg-green-500/15'  },
+    { key: 'Tríceps',          icon: '💪', color: 'text-emerald-300', bg: 'bg-emerald-500/15'},
+    { key: 'Cuádriceps',       icon: '🦵', color: 'text-orange-300',  bg: 'bg-orange-500/15' },
+    { key: 'Femoral / Glúteo', icon: '🍑', color: 'text-pink-300',    bg: 'bg-pink-500/15'   },
+    { key: 'Abdomen',          icon: '⬜', color: 'text-yellow-300',  bg: 'bg-yellow-500/15' },
+    { key: 'Cardio',           icon: '❤️', color: 'text-red-300',     bg: 'bg-red-500/15'    },
+  ]
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-5 pb-6 space-y-4">
@@ -243,6 +265,30 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Músculos esta semana ───────────────────────────────────────── */}
+      {thisWeek > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Músculos esta semana</p>
+          <div className="grid grid-cols-3 gap-2">
+            {ALL_MUSCLES.map(({ key, icon, color, bg }) => {
+              const sets    = weekMuscles[key] ?? 0
+              const worked  = sets > 0
+              return (
+                <div key={key} className={`rounded-xl px-3 py-2.5 flex items-center gap-2 transition-colors ${
+                  worked ? bg : 'bg-gray-800/40'}`}>
+                  <span className="text-base leading-none">{icon}</span>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold truncate ${worked ? color : 'text-gray-700'}`}>{key}</p>
+                    {worked && <p className="text-[10px] text-gray-500">{sets} series</p>}
+                  </div>
+                  {worked && <span className="ml-auto text-[10px] text-gray-500">✓</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Calendario ─────────────────────────────────────────────────── */}
       {loading ? (

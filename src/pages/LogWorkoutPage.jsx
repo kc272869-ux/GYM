@@ -240,6 +240,41 @@ export default function LogWorkoutPage() {
               onChange={(id) => setExercise(entry.uid, id)} />
           </div>
 
+          {/* Progresión sugerida — última vez que hiciste este ejercicio */}
+          {entry.exerciseId && (() => {
+            const prev = workouts.filter(w => w.exercise_id === entry.exerciseId)
+            if (!prev.length) return null
+            const ex = exercises.find(e => e.id === entry.exerciseId)
+            if (ex?.type === 'time') {
+              const lastDur = prev[0]?.duration_sec
+              if (!lastDur) return null
+              const m = Math.floor(lastDur / 60), s = lastDur % 60
+              return (
+                <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-blue-900/20 border border-blue-800/40 flex items-center gap-2">
+                  <span className="text-sm">⏱</span>
+                  <p className="text-xs text-blue-300">
+                    Última vez: <span className="font-bold">{m > 0 ? `${m}min${s > 0 ? ` ${s}s` : ''}` : `${s}s`}</span>
+                  </p>
+                </div>
+              )
+            }
+            const maxW  = Math.max(...prev.map(w => w.weight_kg ?? 0))
+            const lastSession = prev[0]
+            const sameWeight  = prev.filter(w => Math.abs((w.weight_kg ?? 0) - maxW) < 0.1)
+            const maxReps     = Math.max(...sameWeight.map(w => w.reps ?? 0))
+            return (
+              <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-blue-900/20 border border-blue-800/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">📈</span>
+                  <p className="text-xs text-blue-300">
+                    Última vez: <span className="font-bold">{lastSession.weight_kg}kg × {lastSession.reps}</span>
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600">máx {maxW}kg × {maxReps}</p>
+              </div>
+            )
+          })()}
+
           <div className="px-4 pb-3 space-y-3">
             {entry.sets.map((set, si) => (
               <div key={set.id} className="bg-gray-800 rounded-xl p-3 space-y-3">
