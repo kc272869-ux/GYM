@@ -15,6 +15,7 @@ import { useWorkouts }  from '../hooks/useWorkouts'
 import { useProfile }   from '../hooks/useProfile'
 import { detectPRs }    from '../utils/records'
 import RestTimer        from '../components/ui/RestTimer'
+import Stopwatch        from '../components/ui/Stopwatch'
 import SessionSummary   from '../components/workouts/SessionSummary'
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -251,29 +252,11 @@ export default function LogWorkoutPage() {
                 {(() => {
                   const exType = exercises.find(e => e.id === entry.exerciseId)?.type ?? 'weight_reps'
                   return exType === 'time' ? (
-                    // Ejercicio de tiempo (cardio, plancha, etc.)
-                    <div className="space-y-1">
-                      <label className="text-xs text-gray-500 font-medium">Duración</label>
-                      <div className="flex gap-2">
-                        {[30, 60, 90, 120, 180, 300].map(sec => (
-                          <button key={sec} type="button"
-                            onClick={() => updateSet(entry.uid, set.id, 'duration_sec', sec)}
-                            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 ${
-                              set.duration_sec === sec
-                                ? 'bg-blue-600 border-blue-500 text-white'
-                                : 'bg-gray-900 border-gray-700 text-gray-400'}`}>
-                            {sec < 60 ? `${sec}s` : `${sec/60}m`}
-                          </button>
-                        ))}
-                      </div>
-                      {set.duration_sec && (
-                        <p className="text-center text-blue-400 text-sm font-bold pt-1">
-                          {set.duration_sec >= 60
-                            ? `${Math.floor(set.duration_sec/60)}min ${set.duration_sec%60 > 0 ? set.duration_sec%60+'s' : ''}`
-                            : `${set.duration_sec}s`}
-                        </p>
-                      )}
-                    </div>
+                    // Ejercicio de tiempo — cronómetro activo
+                    <Stopwatch
+                      value={set.duration_sec || 0}
+                      onChange={sec => updateSet(entry.uid, set.id, 'duration_sec', sec || null)}
+                    />
                   ) : (
                     // Ejercicio de peso + reps
                     <div className="grid grid-cols-2 gap-3">
