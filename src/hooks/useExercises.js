@@ -38,10 +38,10 @@ export function useExercises() {
   useEffect(() => { fetchExercises() }, [user])
 
   // Agregar un ejercicio personalizado
-  const addExercise = async (name, muscleGroup) => {
+  const addExercise = async (name, muscleGroup, type = 'weight_reps') => {
     const { data, error } = await supabase
       .from('exercises')
-      .insert({ name, muscle_group: muscleGroup, user_id: user.id })
+      .insert({ name, muscle_group: muscleGroup, type, user_id: user.id })
       .select()
       .single()
 
