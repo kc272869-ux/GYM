@@ -68,7 +68,10 @@ export default function SessionSummary({ sessionName, logs, prs, profile, onDone
         />
         <StatBox
           icon="🏋️"
-          value={stats ? `${stats.totalVolume.toLocaleString()} kg` : `${logs?.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0).toLocaleString()} kg`}
+          value={(() => {
+            const vol = logs?.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0) ?? 0
+            return vol > 0 ? `${vol.toLocaleString()} kg` : '—'
+          })()}
           label="Volumen total"
           color="text-purple-400"
         />

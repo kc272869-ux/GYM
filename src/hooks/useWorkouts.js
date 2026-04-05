@@ -23,7 +23,7 @@ export function useWorkouts(exerciseId = null) {
       .from('workout_logs')
       .select(`
         *,
-        exercises ( name, muscle_group )
+        exercises ( name, muscle_group, type, met_value )
       `)
       .eq('user_id', user.id)
       .order('logged_at', { ascending: false })
@@ -58,7 +58,7 @@ export function useWorkouts(exerciseId = null) {
         notes,
         // logged_at tiene DEFAULT now() en Supabase, no hace falta enviarlo
       })
-      .select(`*, exercises ( name, muscle_group )`)
+      .select(`*, exercises ( name, muscle_group, type, met_value )`)
       .single()
 
     if (!error) setWorkouts(prev => [data, ...prev])

@@ -30,8 +30,9 @@ export function useSessions() {
           reps,
           sets,
           rpe,
+          duration_sec,
           notes,
-          exercises ( name, muscle_group )
+          exercises ( name, muscle_group, type, met_value )
         )
       `)
       .eq('user_id', user.id)
@@ -62,14 +63,15 @@ export function useSessions() {
 
     // 2. Insertar todos los workout_logs vinculados a esta sesión
     const rows = logs.map(l => ({
-      user_id:     user.id,
-      session_id:  session.id,
-      exercise_id: l.exerciseId,
-      weight_kg:   l.weight,
-      reps:        l.reps,
-      sets:        1,
-      rpe:         l.rpe,
-      notes:       l.notes ?? null,
+      user_id:      user.id,
+      session_id:   session.id,
+      exercise_id:  l.exerciseId,
+      weight_kg:    l.weight    ?? null,
+      reps:         l.reps      ?? null,
+      sets:         1,
+      rpe:          l.rpe,
+      duration_sec: l.duration_sec ?? null,
+      notes:        l.notes ?? null,
     }))
 
     const { error: logsError } = await supabase

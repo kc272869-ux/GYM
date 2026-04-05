@@ -18,7 +18,7 @@ import RestTimer        from '../components/ui/RestTimer'
 import SessionSummary   from '../components/workouts/SessionSummary'
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
-const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7 })
+const newSet   = (prev = null) => ({ id: uid(), weight: prev?.weight ?? '', reps: prev?.reps ?? '', rpe: prev?.rpe ?? 7, duration_sec: prev?.duration_sec ?? '' })
 const newEntry = ()            => ({ uid: uid(), exerciseId: '', sets: [newSet()] })
 
 const RPE_OPTIONS = [
@@ -142,36 +142,43 @@ export default function LogWorkoutPage() {
     setError('')
     for (const entry of session) {
       if (!entry.exerciseId) return setError('Selecciona un ejercicio en cada bloque')
-      for (const s of entry.sets)
-        if (!s.weight || !s.reps) return setError('Completa peso y reps en todas las series')
+      const exType = exercises.find(x => x.id === entry.exerciseId)?.type ?? 'weight_reps'
+      for (const s of entry.sets) {
+        if (exType === 'time' && !s.duration_sec) return setError('Selecciona la duración en todos los bloques de tiempo')
+        if (exType === 'weight_reps' && (!s.weight || !s.reps)) return setError('Completa peso y reps en todas las series')
+      }
     }
     setSaving(true)
     const exNames   = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
     const finalName = sessionName.trim() || exNames.filter(Boolean).join(' · ')
-    const logs      = session.flatMap((entry, ei) =>
-      entry.sets.map((s, si) => ({
-        exerciseId: entry.exerciseId,
-        weight:     parseFloat(s.weight),
-        reps:       parseInt(s.reps),
-        rpe:        parseInt(s.rpe),
-        notes:      `Ej ${ei+1} · Serie ${si+1}`,
+    const logs      = session.flatMap((entry, ei) => {
+      const exType = exercises.find(x => x.id === entry.exerciseId)?.type ?? 'weight_reps'
+      return entry.sets.map((s, si) => ({
+        exerciseId:   entry.exerciseId,
+        weight:       exType === 'weight_reps' ? parseFloat(s.weight) : null,
+        reps:         exType === 'weight_reps' ? parseInt(s.reps)     : null,
+        duration_sec: exType === 'time'        ? parseInt(s.duration_sec) : null,
+        rpe:          parseInt(s.rpe),
+        notes:        `Ej ${ei+1} · Serie ${si+1}`,
       }))
-    )
+    })
 
     const { error, data: savedSession } = await saveSession({ name: finalName, logs })
     if (error) { setError('Error al guardar. Inténtalo de nuevo.'); setSaving(false); return }
 
     // Construir logs con exercise_id para detectar PRs
-    const logsWithEx = session.flatMap(entry =>
-      entry.sets.map(s => ({
-        exercise_id: entry.exerciseId,
-        weight_kg:   parseFloat(s.weight),
-        reps:        parseInt(s.reps),
-        rpe:         parseInt(s.rpe),
-        exercises:   { name: exercises.find(x => x.id === entry.exerciseId)?.name ?? '' },
-        id:          `new-${uid()}`,
+    const logsWithEx = session.flatMap(entry => {
+      const ex = exercises.find(x => x.id === entry.exerciseId)
+      return entry.sets.map(s => ({
+        exercise_id:  entry.exerciseId,
+        weight_kg:    s.weight ? parseFloat(s.weight) : null,
+        reps:         s.reps   ? parseInt(s.reps)     : null,
+        duration_sec: s.duration_sec ? parseInt(s.duration_sec) : null,
+        rpe:          parseInt(s.rpe),
+        exercises:    { name: ex?.name ?? '', type: ex?.type ?? 'weight_reps', met_value: ex?.met_value ?? 4.0 },
+        id:           `new-${uid()}`,
       }))
-    )
+    })
     const prs = detectPRs(logsWithEx, workouts)
 
     setSummary({ sessionName: finalName, logs: logsWithEx, prs })
@@ -241,20 +248,50 @@ export default function LogWorkoutPage() {
                     className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm transition-colors">✕</button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-500 font-medium">Peso (kg)</label>
-                    <input type="number" inputMode="decimal" step="0.5" min="0" placeholder="0"
-                      value={set.weight} onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
-                      className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-500 font-medium">Repeticiones</label>
-                    <input type="number" inputMode="numeric" min="1" max="500" placeholder="0"
-                      value={set.reps} onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
-                      className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                </div>
+                {(() => {
+                  const exType = exercises.find(e => e.id === entry.exerciseId)?.type ?? 'weight_reps'
+                  return exType === 'time' ? (
+                    // Ejercicio de tiempo (cardio, plancha, etc.)
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500 font-medium">Duración</label>
+                      <div className="flex gap-2">
+                        {[30, 60, 90, 120, 180, 300].map(sec => (
+                          <button key={sec} type="button"
+                            onClick={() => updateSet(entry.uid, set.id, 'duration_sec', sec)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 ${
+                              set.duration_sec === sec
+                                ? 'bg-blue-600 border-blue-500 text-white'
+                                : 'bg-gray-900 border-gray-700 text-gray-400'}`}>
+                            {sec < 60 ? `${sec}s` : `${sec/60}m`}
+                          </button>
+                        ))}
+                      </div>
+                      {set.duration_sec && (
+                        <p className="text-center text-blue-400 text-sm font-bold pt-1">
+                          {set.duration_sec >= 60
+                            ? `${Math.floor(set.duration_sec/60)}min ${set.duration_sec%60 > 0 ? set.duration_sec%60+'s' : ''}`
+                            : `${set.duration_sec}s`}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    // Ejercicio de peso + reps
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500 font-medium">Peso (kg)</label>
+                        <input type="number" inputMode="decimal" step="0.5" min="0" placeholder="0"
+                          value={set.weight} onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500 font-medium">Repeticiones</label>
+                        <input type="number" inputMode="numeric" min="1" max="500" placeholder="0"
+                          value={set.reps} onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
