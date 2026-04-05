@@ -142,8 +142,6 @@ export default function ProfilePage() {
         </div>
         {[
           { to: '/exercises', icon: '💪', label: 'Gestionar ejercicios',  desc: 'Agregar ejercicios personalizados' },
-          { to: '/routines',  icon: '🗓️', label: 'Rutinas',               desc: 'Organizar días de entrenamiento' },
-          { to: '/progress',  icon: '📈', label: 'Progreso',              desc: 'Gráficas de evolución' },
         ].map(item => (
           <Link key={item.to} to={item.to}
             className="flex items-center gap-4 px-4 py-3.5 border-b border-gray-800 last:border-0 hover:bg-gray-800/40 active:bg-gray-800 transition-colors">
