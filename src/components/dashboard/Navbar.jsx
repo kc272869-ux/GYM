@@ -6,8 +6,9 @@
  *
  * La barra inferior respeta el "safe area" del iPhone (home bar).
  */
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useNavigationGuard } from '../../context/NavigationGuardContext'
 
 const navItems = [
   { to: '/',          label: 'Inicio',    icon: '🏠' },
@@ -19,6 +20,14 @@ const navItems = [
 
 export default function Navbar() {
   const { user, signOut } = useAuth()
+  const { checkGuard }    = useNavigationGuard()
+  const navigate          = useNavigate()
+
+  const handleNav = async (e, to) => {
+    e.preventDefault()
+    const canLeave = await checkGuard()
+    if (canLeave) navigate(to)
+  }
 
   return (
     <>
@@ -70,6 +79,7 @@ export default function Navbar() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              onClick={(e) => handleNav(e, item.to)}
               className={({ isActive }) => `
                 flex flex-col items-center justify-center gap-0.5 flex-1 h-full
                 transition-all duration-150

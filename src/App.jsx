@@ -11,6 +11,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { UnitsProvider } from './context/UnitsContext'
+import { NavigationGuardProvider } from './context/NavigationGuardContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Páginas
@@ -86,12 +87,14 @@ export default function App() {
     <ErrorBoundary>
     <AuthProvider>
     <UnitsProvider>
+    <NavigationGuardProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute />} />
           <Route path="/*"    element={<ProtectedLayout />} />
         </Routes>
       </BrowserRouter>
+    </NavigationGuardProvider>
     </UnitsProvider>
     </AuthProvider>
     </ErrorBoundary>
