@@ -9,7 +9,6 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions }  from '../hooks/useSessions'
 import { useWorkouts }  from '../hooks/useWorkouts'
@@ -105,7 +104,6 @@ function ExerciseSearch({ exercises, value, onChange }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function LogWorkoutPage() {
   const navigate = useNavigate()
-  const { registerGuard, clearGuard } = useNavigationGuard()
   const { exercises }            = useExercises()
   const { saveSession }          = useSessions()
   const { workouts }             = useWorkouts()
@@ -243,35 +241,6 @@ export default function LogWorkoutPage() {
   }
 
   const totalSets = session.reduce((s, e) => s + e.sets.length, 0)
-
-  // Hay datos sin guardar si algún ejercicio está seleccionado o hay peso/reps
-  const isDirty = !summary && session.some(e =>
-    e.exerciseId || e.sets.some(s => s.weight || s.reps || s.duration_sec)
-  )
-
-  const [showLeaveModal, setShowLeaveModal] = useState(false)
-  const pendingNavRef = useRef(null)
-
-  // Registrar/limpiar guard de navegación global
-  useEffect(() => {
-    if (!isDirty) { clearGuard(); return }
-    registerGuard(() => new Promise(resolve => {
-      pendingNavRef.current = resolve
-      setShowLeaveModal(true)
-    }))
-    return () => clearGuard()
-  }, [isDirty])
-
-  // Bloquear cierre de pestaña / recarga
-  useEffect(() => {
-    if (!isDirty) return
-    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
-
-  const confirmLeave  = () => { setShowLeaveModal(false); pendingNavRef.current?.(true) }
-  const cancelLeave   = () => { setShowLeaveModal(false); pendingNavRef.current?.(false) }
 
   // ── Resumen post-sesión ───────────────────────────────────────────────────
   if (summary) {
@@ -462,28 +431,6 @@ export default function LogWorkoutPage() {
         ) : `Finalizar sesión · ${totalSets} serie${totalSets !== 1 ? 's' : ''}`}
       </button>
 
-      {/* Modal — salir sin guardar */}
-      {showLeaveModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4"
-          style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4">
-            <div className="text-center space-y-1">
-              <p className="text-white font-bold text-base">¿Salir sin guardar?</p>
-              <p className="text-gray-400 text-sm">Perderás los datos de esta sesión.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={cancelLeave}
-                className="flex-1 py-3 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm font-semibold active:scale-95 transition-all">
-                Seguir aquí
-              </button>
-              <button onClick={confirmLeave}
-                className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold active:scale-95 transition-all">
-                Salir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
