@@ -195,7 +195,7 @@ export default function HistoryPage() {
                     <div className="px-4 py-3 space-y-3">
                       {exerciseMap.map((ex, i) => {
                         const exVol = ex.sets.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0)
-                        const maxW  = Math.max(...ex.sets.map(l => l.weight_kg ?? 0))
+                        const maxW  = ex.sets.length ? Math.max(...ex.sets.map(l => l.weight_kg ?? 0)) : 0
                         return (
                           <div key={i} className="bg-gray-800/50 rounded-2xl overflow-hidden">
                             {/* Header ejercicio */}

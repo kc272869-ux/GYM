@@ -185,10 +185,10 @@ export default function ProgressPage() {
           {/* Estadísticas del ejercicio */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Máximo peso', value: `${Math.max(...currentLogs.map(l => l.weight_kg))} kg` },
-              { label: 'Peso actual', value: `${currentLogs[0]?.weight_kg} kg` },
+              { label: 'Máximo peso',    value: currentLogs.length ? `${Math.max(...currentLogs.map(l => l.weight_kg ?? 0))} kg` : '—' },
+              { label: 'Peso actual',    value: currentLogs[0]?.weight_kg != null ? `${currentLogs[0].weight_kg} kg` : '—' },
               { label: 'Sesiones totales', value: currentLogs.length },
-              { label: 'RPE promedio', value: (currentLogs.reduce((s, l) => s + l.rpe, 0) / currentLogs.length).toFixed(1) },
+              { label: 'RPE promedio',   value: currentLogs.length ? (currentLogs.reduce((s, l) => s + (l.rpe ?? 0), 0) / currentLogs.length).toFixed(1) : '—' },
             ].map(stat => (
               <Card key={stat.label} className="text-center">
                 <p className="text-xl font-bold text-blue-400">{stat.value}</p>

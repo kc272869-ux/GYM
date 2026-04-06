@@ -260,10 +260,10 @@ export default function LogWorkoutPage() {
                 </div>
               )
             }
-            const maxW  = Math.max(...prev.map(w => w.weight_kg ?? 0))
+            const maxW        = Math.max(...prev.map(w => w.weight_kg ?? 0))
             const lastSession = prev[0]
             const sameWeight  = prev.filter(w => Math.abs((w.weight_kg ?? 0) - maxW) < 0.1)
-            const maxReps     = Math.max(...sameWeight.map(w => w.reps ?? 0))
+            const maxReps     = sameWeight.length ? Math.max(...sameWeight.map(w => w.reps ?? 0)) : 0
             return (
               <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-blue-900/20 border border-blue-800/40 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">

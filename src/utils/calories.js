@@ -40,7 +40,9 @@ export function calcSessionCalories({ logs, weightKg, sex }) {
     totalCal += met * weightKg * durationHours * sexFactor
     totalMin += durationHours * 60
     totalRpe += rpe
-    totalVol += (log.weight_kg ?? 0) * (log.reps ?? 0)
+    const w = parseFloat(log.weight_kg) || 0
+    const r = parseInt(log.reps)        || 0
+    totalVol += w * r
   })
 
   return {

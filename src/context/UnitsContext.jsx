@@ -30,6 +30,7 @@ export function UnitsProvider({ children }) {
   const toKg = (val) => {
     if (val == null || val === '') return null
     const n = parseFloat(val)
+    if (isNaN(n)) return null
     return units === 'lb' ? Math.round((n / KG_TO_LB) * 100) / 100 : n
   }
 
