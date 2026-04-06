@@ -91,56 +91,33 @@ function Timer({ onChange }) {
 function ManualInput({ onChange }) {
   const [mins, setMins] = useState('')
   const [secs, setSecs] = useState('')
-  const [saved, setSaved] = useState(false)
 
-  const total = (parseInt(mins) || 0) * 60 + (parseInt(secs) || 0)
-
-  const handleSave = () => {
-    if (total <= 0) return
-    setSaved(true)
-    onChange(total)
-  }
-
-  const handleReset = () => {
-    setMins('')
-    setSecs('')
-    setSaved(false)
-    onChange(null)
+  const update = (m, s) => {
+    const total = (parseInt(m) || 0) * 60 + (parseInt(s) || 0)
+    onChange(total > 0 ? total : null)
   }
 
   return (
-    <div className="space-y-3">
-      {/* Inputs min : seg */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 space-y-1">
-          <label className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Min</label>
-          <input
-            type="number" inputMode="numeric" min="0" max="999" placeholder="0"
-            value={mins}
-            onChange={e => { setMins(e.target.value); setSaved(false) }}
-            className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-2xl font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <span className="text-2xl text-gray-600 font-bold mt-4">:</span>
-        <div className="flex-1 space-y-1">
-          <label className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Seg</label>
-          <input
-            type="number" inputMode="numeric" min="0" max="59" placeholder="0"
-            value={secs}
-            onChange={e => { setSecs(e.target.value); setSaved(false) }}
-            className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-2xl font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+    <div className="flex items-center gap-2">
+      <div className="flex-1 space-y-1">
+        <label className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Min</label>
+        <input
+          type="number" inputMode="numeric" min="0" max="999" placeholder="0"
+          value={mins}
+          onChange={e => { setMins(e.target.value); update(e.target.value, secs) }}
+          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-2xl font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
-
-      {/* Guardar */}
-      <button type="button" onClick={saved ? handleReset : handleSave}
-        disabled={!saved && total <= 0}
-        className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-40 ${
-          saved ? 'bg-green-600/15 border border-green-500/30 text-green-400' : 'bg-blue-600 text-white'
-        }`}>
-        {saved ? `Guardado: ${fmt(total)}  ↺` : 'Guardar'}
-      </button>
+      <span className="text-2xl text-gray-600 font-bold mt-4">:</span>
+      <div className="flex-1 space-y-1">
+        <label className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Seg</label>
+        <input
+          type="number" inputMode="numeric" min="0" max="59" placeholder="0"
+          value={secs}
+          onChange={e => { setSecs(e.target.value); update(mins, e.target.value) }}
+          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-2xl font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
     </div>
   )
 }
