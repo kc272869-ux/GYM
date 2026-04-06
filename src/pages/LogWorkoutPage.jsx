@@ -172,7 +172,7 @@ export default function LogWorkoutPage() {
     const exNames   = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
     const muscles   = [...new Set(session.map(e => exercises.find(x => x.id === e.exerciseId)?.muscle_group).filter(Boolean))]
     const smartName = (() => {
-      if (muscles.length === 0) return exNames.filter(Boolean).join(' · ')
+      if (muscles.length === 0) return 'Sesión'
       if (muscles.length === 1) {
         const m = muscles[0]
         if (m === 'Cardio') return 'Cardio'
@@ -183,7 +183,7 @@ export default function LogWorkoutPage() {
       const legGroups = new Set(['Cuádriceps', 'Femoral / Glúteo', 'Pantorrilla'])
       if (muscles.every(m => legGroups.has(m))) return 'Día de Pierna'
       if (muscles.length === 2) return muscles.join(' + ')
-      return exNames.filter(Boolean).slice(0, 2).join(' · ')
+      return muscles.slice(0, 3).join(' + ')
     })()
     const finalName = sessionName.trim() || smartName
     const logs      = session.flatMap((entry, ei) => {
