@@ -212,10 +212,15 @@ export default function DashboardPage() {
   const loading     = loadingW || loadingS
 
   const { thisWeek, weekMuscles } = useMemo(() => {
-    const weekSessions = sessions.filter(s => {
-      const diff = (Date.now() - new Date(s.logged_at)) / (1000 * 60 * 60 * 24)
-      return diff <= 7
-    })
+    // Inicio de semana = lunes 00:00 de la semana actual
+    const now       = new Date()
+    const day       = now.getDay()                 // 0=dom, 1=lun...
+    const diffToMon = day === 0 ? -6 : 1 - day    // días hasta el lunes
+    const monday    = new Date(now)
+    monday.setDate(now.getDate() + diffToMon)
+    monday.setHours(0, 0, 0, 0)
+
+    const weekSessions = sessions.filter(s => new Date(s.logged_at) >= monday)
     const muscles = {}
     weekSessions.forEach(s => {
       ;(s.workout_logs ?? []).forEach(l => {
