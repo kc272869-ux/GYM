@@ -4,7 +4,7 @@
  * Progresión por ejercicio: peso máximo, volumen y 1RM estimado por sesión.
  * Tabs + filtro de rango de fechas.
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
   PointElement, LineElement, Tooltip, Filler,
@@ -68,6 +68,15 @@ export default function ProgressPage() {
   const [selectedEx,  setSelectedEx]  = useState('')
   const [activeTab,   setActiveTab]   = useState('weight')
   const [rangeDays,   setRangeDays]   = useState(90)
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const [query,       setQuery]       = useState('')
+  const searchRef                     = useRef(null)
+
+  useEffect(() => {
+    const h = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
 
   // Ejercicios con datos
   const exercisesWithData = useMemo(() => {
@@ -148,6 +157,21 @@ export default function ProgressPage() {
 
   const selectedExName = exercises.find(e => e.id === selectedEx)?.name ?? ''
 
+  // Ejercicios con datos filtrados por búsqueda, agrupados por músculo
+  const filteredForSearch = useMemo(() => {
+    const list = query.trim()
+      ? exercisesWithData.filter(e =>
+          e.name.toLowerCase().includes(query.toLowerCase()) ||
+          e.muscle_group.toLowerCase().includes(query.toLowerCase()))
+      : exercisesWithData
+    const grouped = {}
+    list.forEach(ex => {
+      if (!grouped[ex.muscle_group]) grouped[ex.muscle_group] = []
+      grouped[ex.muscle_group].push(ex)
+    })
+    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
+  }, [exercisesWithData, query])
+
   return (
     <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
 
@@ -157,17 +181,60 @@ export default function ProgressPage() {
         <p className="text-gray-500 text-xs mt-0.5">Evolución por ejercicio</p>
       </div>
 
-      {/* Selector ejercicio */}
-      <select
-        value={selectedEx}
-        onChange={e => setSelectedEx(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl border bg-gray-900 border-gray-800 text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">— Selecciona un ejercicio —</option>
-        {exercisesWithData.map(ex => (
-          <option key={ex.id} value={ex.id}>{ex.name}</option>
-        ))}
-      </select>
+      {/* Selector ejercicio — buscador custom */}
+      <div ref={searchRef} className="relative">
+        <button
+          type="button"
+          onClick={() => { setSearchOpen(o => !o); setQuery('') }}
+          className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left transition-colors ${
+            searchOpen ? 'border-blue-500 bg-gray-800' : 'border-gray-800 bg-gray-900'}`}>
+          {selectedEx
+            ? <div className="min-w-0">
+                <p className="text-white font-medium text-sm truncate">{selectedExName}</p>
+                <p className="text-gray-500 text-xs">{exercises.find(e => e.id === selectedEx)?.muscle_group}</p>
+              </div>
+            : <span className="text-gray-500 text-sm">Selecciona un ejercicio</span>
+          }
+          <span className={`text-gray-500 text-xs transition-transform ml-2 shrink-0 ${searchOpen ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+
+        {searchOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden shadow-xl shadow-black/40">
+            {/* Buscador */}
+            <div className="p-2 border-b border-gray-800">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Buscar ejercicio..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-gray-800 border border-gray-700 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Lista agrupada */}
+            <div className="max-h-72 overflow-y-auto">
+              {filteredForSearch.length === 0 ? (
+                <p className="text-center text-gray-600 text-sm py-6">Sin resultados</p>
+              ) : filteredForSearch.map(([muscle, exs]) => (
+                <div key={muscle}>
+                  <p className="px-4 py-1.5 text-[10px] font-bold text-gray-600 uppercase tracking-wider bg-gray-900/80 sticky top-0">
+                    {muscle}
+                  </p>
+                  {exs.map(ex => (
+                    <button key={ex.id} type="button"
+                      onClick={() => { setSelectedEx(ex.id); setSearchOpen(false); setQuery('') }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-gray-800 active:bg-gray-700 ${
+                        selectedEx === ex.id ? 'text-blue-400 font-medium' : 'text-gray-300'}`}>
+                      {ex.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {!selectedEx ? (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl py-16 text-center">
