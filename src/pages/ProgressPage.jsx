@@ -55,7 +55,7 @@ function buildChartOptions(color, yLabel) {
     },
     scales: {
       x: { ticks: { color: '#6b7280', font: { size: 11 }, maxTicksLimit: 6 }, grid: { color: '#1f293755' } },
-      y: { ticks: { color: '#6b7280', font: { size: 11 }, callback: v => `${v}` }, grid: { color: '#1f293755' } },
+      y: { ticks: { color: '#6b7280', font: { size: 11 }, callback: v => Number(v.toFixed(1)) }, grid: { color: '#1f293755' } },
     },
   }
 }
@@ -120,24 +120,19 @@ export default function ProgressPage() {
     return `${parseInt(day)} ${months[parseInt(m)-1]}`
   }
 
-  const tab = TABS.find(t => t.key === activeTab)
-
-  const chartValues = sessionPoints.map(p =>
-    activeTab === 'weight' ? toDisplay(p.maxW) :
-    activeTab === 'volume' ? Math.round(p.vol)  : toDisplay(p.orm)
-  )
-
-  const yLabel = activeTab === 'volume' ? 'kg vol.' : label
+  // Siempre muestra peso máximo en el gráfico (simplificado)
+  const chartColor  = '#3b82f6'
+  const chartValues = sessionPoints.map(p => Math.round(toDisplay(p.maxW) * 10) / 10)
 
   const chartData = {
     labels: sessionPoints.map(p => fmtDate(p.date)),
     datasets: [{
       data: chartValues,
-      borderColor: tab.color,
-      backgroundColor: tab.color + '18',
+      borderColor: chartColor,
+      backgroundColor: chartColor + '18',
       fill: true,
       tension: 0.4,
-      pointBackgroundColor: tab.color,
+      pointBackgroundColor: chartColor,
       pointRadius: sessionPoints.length > 20 ? 2 : 4,
       pointHoverRadius: 6,
     }],
@@ -245,39 +240,20 @@ export default function ProgressPage() {
         </div>
       ) : (
         <>
-          {/* Tabs métrica + rango */}
-          <div className="flex items-center justify-between gap-3">
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl">
-              {TABS.map(t => (
-                <button key={t.key} onClick={() => setActiveTab(t.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === t.key ? 'bg-gray-700 text-white' : 'text-gray-500'}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Rango */}
-            <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl">
-              {RANGES.map(r => (
-                <button key={r.label} onClick={() => setRangeDays(r.days)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    rangeDays === r.days ? 'bg-gray-700 text-white' : 'text-gray-500'}`}>
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Gráfico */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-white">{selectedExName}</p>
-              <span className="text-xs font-medium px-2 py-1 rounded-full"
-                style={{ background: tab.color + '20', color: tab.color }}>
-                {tab.label}
-              </span>
+            {/* Nombre + rango en la misma fila */}
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <p className="text-sm font-semibold text-white truncate">{selectedExName}</p>
+              <div className="flex gap-1 p-1 bg-gray-800/60 rounded-xl shrink-0">
+                {RANGES.map(r => (
+                  <button key={r.label} onClick={() => setRangeDays(r.days)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      rangeDays === r.days ? 'bg-gray-600 text-white' : 'text-gray-500'}`}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {sessionPoints.length < 2 ? (
@@ -288,7 +264,7 @@ export default function ProgressPage() {
               </div>
             ) : (
               <div className="h-48">
-                <Line data={chartData} options={buildChartOptions(tab.color, yLabel)} />
+                <Line data={chartData} options={buildChartOptions(chartColor, label)} />
               </div>
             )}
           </div>
@@ -305,12 +281,9 @@ export default function ProgressPage() {
             </div>
           )}
 
-          {/* Info 1RM */}
-          {activeTab === 'orm' && (
-            <p className="text-xs text-gray-600 text-center">
-              1RM estimado con fórmula de Epley: peso × (1 + reps/30)
-            </p>
-          )}
+          <p className="text-xs text-gray-700 text-center">
+            1RM estimado con fórmula de Epley: peso × (1 + reps/30)
+          </p>
         </>
       )}
     </div>
