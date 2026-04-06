@@ -112,13 +112,32 @@ export default function LogWorkoutPage() {
   const { profile }              = useProfile()
   const { units, toKg, toDisplay, label } = useUnits()
 
-  const [sessionName, setSessionName] = useState('')
-  const [session, setSession]         = useState([newEntry()])
+  const DRAFT_KEY = 'heavy_session_draft'
+
+  // Cargar borrador al montar
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return null
+      const draft = JSON.parse(raw)
+      // Descartar borradores de más de 24h
+      if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(DRAFT_KEY)
+        return null
+      }
+      return draft
+    } catch { return null }
+  }
+
+  const draft = loadDraft()
+
+  const [sessionName, setSessionName] = useState(draft?.sessionName ?? '')
+  const [session, setSession]         = useState(draft?.session ?? [newEntry()])
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
   const [showTimer, setShowTimer]     = useState(false)
-  // Estado del resumen post-sesión
-  const [summary, setSummary] = useState(null) // { sessionName, logs, prs }
+  const [showDraftBanner, setShowDraftBanner] = useState(!!draft)
+  const [summary, setSummary]         = useState(null)
 
   const setExercise = (uid, exerciseId) =>
     setSession(p => p.map(e => e.uid === uid ? { ...e, exerciseId } : e))
@@ -182,7 +201,7 @@ export default function LogWorkoutPage() {
     })
 
     const { error, data: savedSession } = await saveSession({ name: finalName, logs })
-    if (error) { setError('Error al guardar. Inténtalo de nuevo.'); setSaving(false); return }
+    if (error) { setError('Error al guardar. Tu sesión está en borrador — puedes intentarlo de nuevo.'); setSaving(false); return }
 
     // Construir logs con exercise_id para detectar PRs
     const logsWithEx = session.flatMap(entry => {
@@ -199,8 +218,28 @@ export default function LogWorkoutPage() {
     })
     const prs = detectPRs(logsWithEx, workouts)
 
+    clearDraft()
     setSummary({ sessionName: finalName, logs: logsWithEx, prs })
     setSaving(false)
+  }
+
+  // Auto-guardar borrador en localStorage
+  useEffect(() => {
+    if (summary) return
+    const hasSomething = session.some(e =>
+      e.exerciseId || e.sets.some(s => s.weight || s.reps || s.duration_sec)
+    )
+    if (hasSomething || sessionName) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ sessionName, session, savedAt: Date.now() }))
+    }
+  }, [session, sessionName, summary])
+
+  const clearDraft = () => localStorage.removeItem(DRAFT_KEY)
+  const discardDraft = () => {
+    clearDraft()
+    setSessionName('')
+    setSession([newEntry()])
+    setShowDraftBanner(false)
   }
 
   const totalSets = session.reduce((s, e) => s + e.sets.length, 0)
@@ -249,6 +288,20 @@ export default function LogWorkoutPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
+
+      {/* Banner borrador restaurado */}
+      {showDraftBanner && (
+        <div className="bg-blue-900/30 border border-blue-700/50 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-blue-300">Borrador restaurado</p>
+            <p className="text-xs text-blue-400/70 mt-0.5">Continuando donde lo dejaste</p>
+          </div>
+          <button onClick={discardDraft}
+            className="text-xs text-blue-400/60 hover:text-blue-300 underline shrink-0">
+            Descartar
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
