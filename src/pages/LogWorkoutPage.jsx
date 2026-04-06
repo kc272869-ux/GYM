@@ -7,8 +7,8 @@
  * - Temporizador de descanso entre series
  * - Resumen post-sesión con calorías y PRs
  */
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useBlocker } from 'react-router-dom'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions }  from '../hooks/useSessions'
 import { useWorkouts }  from '../hooks/useWorkouts'
@@ -153,7 +153,22 @@ export default function LogWorkoutPage() {
     }
     setSaving(true)
     const exNames   = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
-    const finalName = sessionName.trim() || exNames.filter(Boolean).join(' · ')
+    const muscles   = [...new Set(session.map(e => exercises.find(x => x.id === e.exerciseId)?.muscle_group).filter(Boolean))]
+    const smartName = (() => {
+      if (muscles.length === 0) return exNames.filter(Boolean).join(' · ')
+      if (muscles.length === 1) {
+        const m = muscles[0]
+        if (m === 'Cardio') return 'Cardio'
+        if (m === 'Abdomen') return 'Abdomen'
+        if (m === 'Cuádriceps' || m === 'Femoral / Glúteo' || m === 'Pantorrilla') return 'Día de Pierna'
+        return `Día de ${m}`
+      }
+      const legGroups = new Set(['Cuádriceps', 'Femoral / Glúteo', 'Pantorrilla'])
+      if (muscles.every(m => legGroups.has(m))) return 'Día de Pierna'
+      if (muscles.length === 2) return muscles.join(' + ')
+      return exNames.filter(Boolean).slice(0, 2).join(' · ')
+    })()
+    const finalName = sessionName.trim() || smartName
     const logs      = session.flatMap((entry, ei) => {
       const exType = exercises.find(x => x.id === entry.exerciseId)?.type ?? 'weight_reps'
       return entry.sets.map((s, si) => ({
@@ -189,6 +204,22 @@ export default function LogWorkoutPage() {
   }
 
   const totalSets = session.reduce((s, e) => s + e.sets.length, 0)
+
+  // Hay datos sin guardar si algún ejercicio está seleccionado o hay peso/reps
+  const isDirty = !summary && session.some(e =>
+    e.exerciseId || e.sets.some(s => s.weight || s.reps || s.duration_sec)
+  )
+
+  // Bloquear navegación interna (react-router)
+  const blocker = useBlocker(isDirty)
+
+  // Bloquear cierre de pestaña / recarga
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
 
   // ── Resumen post-sesión ───────────────────────────────────────────────────
   if (summary) {
@@ -364,6 +395,29 @@ export default function LogWorkoutPage() {
           </span>
         ) : `Finalizar sesión · ${totalSets} serie${totalSets !== 1 ? 's' : ''}`}
       </button>
+
+      {/* Modal — salir sin guardar */}
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4"
+          style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4">
+            <div className="text-center space-y-1">
+              <p className="text-white font-bold text-base">¿Salir sin guardar?</p>
+              <p className="text-gray-400 text-sm">Perderás los datos de esta sesión.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => blocker.reset()}
+                className="flex-1 py-3 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm font-semibold active:scale-95 transition-all">
+                Seguir aquí
+              </button>
+              <button onClick={() => blocker.proceed()}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold active:scale-95 transition-all">
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

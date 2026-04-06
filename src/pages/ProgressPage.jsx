@@ -1,201 +1,249 @@
 /**
  * pages/ProgressPage.jsx
  * ----------------------
- * Muestra gráficos de progresión de peso por ejercicio usando Chart.js.
- * También muestra la recomendación de peso para el ejercicio seleccionado.
+ * Progresión por ejercicio: peso máximo, volumen y 1RM estimado por sesión.
+ * Tabs + filtro de rango de fechas.
  */
 import { useState, useMemo } from 'react'
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
+  Chart as ChartJS, CategoryScale, LinearScale,
+  PointElement, LineElement, Tooltip, Filler,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import { useWorkouts } from '../hooks/useWorkouts'
+import { useWorkouts }  from '../hooks/useWorkouts'
 import { useExercises } from '../hooks/useExercises'
-import { getProgressData, getRecommendation } from '../utils/recommendations'
-import Card from '../components/ui/Card'
-import Select from '../components/ui/Select'
-import Badge from '../components/ui/Badge'
+import { useUnits }     from '../context/UnitsContext'
 
-// Registrar módulos de Chart.js (obligatorio antes de usarlos)
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
-// Opciones de configuración del gráfico
-const chartOptions = {
-  responsive: true,
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: {
-      labels: { color: '#9ca3af', font: { size: 12 } }
+// Epley 1RM: peso × (1 + reps/30)
+const epley = (w, r) => r === 1 ? w : Math.round(w * (1 + r / 30) * 10) / 10
+
+const dayKey = (date) => {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+const RANGES = [
+  { label: '30d',  days: 30  },
+  { label: '90d',  days: 90  },
+  { label: '6m',   days: 182 },
+  { label: 'Todo', days: null },
+]
+
+const TABS = [
+  { key: 'weight', label: 'Peso máx',  color: '#3b82f6' },
+  { key: 'volume', label: 'Volumen',   color: '#a855f7' },
+  { key: 'orm',    label: '1RM est.',  color: '#10b981' },
+]
+
+function buildChartOptions(color, yLabel) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111827',
+        borderColor: '#374151',
+        borderWidth: 1,
+        titleColor: '#f9fafb',
+        bodyColor: '#9ca3af',
+        callbacks: { label: ctx => ` ${ctx.parsed.y} ${yLabel}` },
+      },
     },
-    tooltip: {
-      backgroundColor: '#1f2937',
-      borderColor: '#374151',
-      borderWidth: 1,
-      titleColor: '#f9fafb',
-      bodyColor: '#9ca3af',
-    }
-  },
-  scales: {
-    x: {
-      ticks: { color: '#6b7280', font: { size: 11 } },
-      grid:  { color: '#1f2937' },
+    scales: {
+      x: { ticks: { color: '#6b7280', font: { size: 11 }, maxTicksLimit: 6 }, grid: { color: '#1f293755' } },
+      y: { ticks: { color: '#6b7280', font: { size: 11 }, callback: v => `${v}` }, grid: { color: '#1f293755' } },
     },
-    y: {
-      ticks: { color: '#6b7280', font: { size: 11 }, callback: v => `${v} kg` },
-      grid:  { color: '#1f2937' },
-    },
-    y1: {
-      // Eje secundario para RPE (escala 1-10)
-      position: 'right',
-      min: 0, max: 10,
-      ticks: { color: '#6b7280', font: { size: 11 }, callback: v => `RPE ${v}` },
-      grid: { drawOnChartArea: false },
-    }
-  },
+  }
 }
 
 export default function ProgressPage() {
   const { workouts, loading } = useWorkouts()
   const { exercises }         = useExercises()
-  const [selectedEx, setSelectedEx] = useState('')
+  const { toDisplay, label }  = useUnits()
 
-  // Agrupar workouts por ejercicio
-  const grouped = useMemo(() => {
-    const groups = {}
-    workouts.forEach(w => {
-      if (!groups[w.exercise_id]) groups[w.exercise_id] = []
-      groups[w.exercise_id].push(w)
+  const [selectedEx,  setSelectedEx]  = useState('')
+  const [activeTab,   setActiveTab]   = useState('weight')
+  const [rangeDays,   setRangeDays]   = useState(90)
+
+  // Ejercicios con datos
+  const exercisesWithData = useMemo(() => {
+    const ids = new Set(workouts.map(w => w.exercise_id))
+    return exercises.filter(e => ids.has(e.id))
+  }, [workouts, exercises])
+
+  // Logs del ejercicio seleccionado, dentro del rango
+  const filteredLogs = useMemo(() => {
+    if (!selectedEx) return []
+    return workouts.filter(w => {
+      if (w.exercise_id !== selectedEx) return false
+      if (!rangeDays) return true
+      const diff = (Date.now() - new Date(w.logged_at)) / (1000 * 60 * 60 * 24)
+      return diff <= rangeDays
     })
-    return groups
-  }, [workouts])
+  }, [workouts, selectedEx, rangeDays])
 
-  // Obtener datos del ejercicio seleccionado
-  const currentLogs = grouped[selectedEx] || []
-  const progressData = getProgressData(currentLogs, 15)
-  const recommendation = getRecommendation(currentLogs)
+  // Agrupar por sesión (día) → métricas por sesión
+  const sessionPoints = useMemo(() => {
+    const map = {}
+    filteredLogs.forEach(l => {
+      const k = dayKey(l.logged_at)
+      if (!map[k]) map[k] = { date: k, logs: [] }
+      map[k].logs.push(l)
+    })
+    return Object.values(map)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(({ date, logs }) => {
+        const validLogs = logs.filter(l => l.weight_kg && l.reps)
+        const maxW  = validLogs.length ? Math.max(...validLogs.map(l => l.weight_kg)) : 0
+        const vol   = validLogs.reduce((s, l) => s + l.weight_kg * l.reps, 0)
+        const orm   = validLogs.length ? Math.max(...validLogs.map(l => epley(l.weight_kg, l.reps))) : 0
+        return { date, maxW, vol, orm }
+      })
+  }, [filteredLogs])
 
-  // Construir los datos para Chart.js
-  const chartData = {
-    labels: progressData.labels,
-    datasets: [
-      {
-        label: 'Peso (kg)',
-        data: progressData.weights,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        fill: true,
-        tension: 0.4,
-        yAxisID: 'y',
-        pointBackgroundColor: '#3b82f6',
-        pointRadius: 5,
-      },
-      {
-        label: 'RPE',
-        data: progressData.rpes,
-        borderColor: '#f59e0b',
-        backgroundColor: 'transparent',
-        tension: 0.4,
-        yAxisID: 'y1',
-        borderDash: [4, 4],
-        pointBackgroundColor: '#f59e0b',
-        pointRadius: 4,
-      },
-    ],
+  const fmtDate = (d) => {
+    const [, m, day] = d.split('-')
+    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+    return `${parseInt(day)} ${months[parseInt(m)-1]}`
   }
 
-  // Ejercicios que tienen registros
-  const exercisesWithData = exercises.filter(ex => grouped[ex.id]?.length > 0)
+  const tab = TABS.find(t => t.key === activeTab)
+
+  const chartValues = sessionPoints.map(p =>
+    activeTab === 'weight' ? toDisplay(p.maxW) :
+    activeTab === 'volume' ? Math.round(p.vol)  : toDisplay(p.orm)
+  )
+
+  const yLabel = activeTab === 'volume' ? 'kg vol.' : label
+
+  const chartData = {
+    labels: sessionPoints.map(p => fmtDate(p.date)),
+    datasets: [{
+      data: chartValues,
+      borderColor: tab.color,
+      backgroundColor: tab.color + '18',
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: tab.color,
+      pointRadius: sessionPoints.length > 20 ? 2 : 4,
+      pointHoverRadius: 6,
+    }],
+  }
+
+  // Stats resumen
+  const allWeights = sessionPoints.map(p => p.maxW).filter(Boolean)
+  const allOrms    = sessionPoints.map(p => p.orm).filter(Boolean)
+  const allRpes    = filteredLogs.map(l => l.rpe).filter(Boolean)
+
+  const stats = selectedEx && sessionPoints.length > 0 ? [
+    { label: 'Peso máx',   value: allWeights.length ? `${toDisplay(Math.max(...allWeights))} ${label}` : '—' },
+    { label: '1RM est.',   value: allOrms.length    ? `${toDisplay(Math.max(...allOrms))} ${label}`    : '—',  color: 'text-green-400' },
+    { label: 'Sesiones',   value: sessionPoints.length },
+    { label: 'RPE prom.',  value: allRpes.length    ? (allRpes.reduce((a,b) => a+b,0) / allRpes.length).toFixed(1) : '—' },
+  ] : []
+
+  const selectedExName = exercises.find(e => e.id === selectedEx)?.name ?? ''
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
 
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">📈 Progreso</h1>
-        <p className="text-gray-400 text-sm mt-1">Gráficos de evolución por ejercicio</p>
+        <h1 className="text-xl font-bold text-white">Progreso</h1>
+        <p className="text-gray-500 text-xs mt-0.5">Evolución por ejercicio</p>
       </div>
 
-      {/* Selector de ejercicio */}
-      <Select
-        label="Selecciona un ejercicio para ver su progresión"
+      {/* Selector ejercicio */}
+      <select
         value={selectedEx}
         onChange={e => setSelectedEx(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl border bg-gray-900 border-gray-800 text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <option value="">— Elige un ejercicio —</option>
+        <option value="">— Selecciona un ejercicio —</option>
         {exercisesWithData.map(ex => (
-          <option key={ex.id} value={ex.id}>
-            {ex.name} ({grouped[ex.id]?.length} registros)
-          </option>
+          <option key={ex.id} value={ex.id}>{ex.name}</option>
         ))}
-      </Select>
+      </select>
 
       {!selectedEx ? (
-        <Card className="text-center py-16">
-          <p className="text-5xl mb-4">📊</p>
-          <p className="text-gray-400">Selecciona un ejercicio para ver su progreso</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl py-16 text-center">
+          <p className="text-gray-700 text-sm">Selecciona un ejercicio</p>
           {exercisesWithData.length === 0 && !loading && (
-            <p className="text-gray-600 text-sm mt-2">Registra entrenamientos primero</p>
+            <p className="text-gray-700 text-xs mt-1">Registra entrenamientos primero</p>
           )}
-        </Card>
+        </div>
       ) : (
         <>
-          {/* Recomendación */}
-          <div className={`rounded-xl border p-4 space-y-1 ${
-            recommendation.action === 'increase' ? 'bg-green-900/20 border-green-800' :
-            recommendation.action === 'decrease' ? 'bg-red-900/20 border-red-800' :
-            'bg-yellow-900/20 border-yellow-800'
-          }`}>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-white">Recomendación</span>
-              <Badge color={recommendation.badgeColor}>
-                {recommendation.action === 'increase' ? '⬆️ Subir peso' :
-                 recommendation.action === 'decrease' ? '⬇️ Bajar peso' : '➡️ Mantener'}
-              </Badge>
+          {/* Tabs métrica + rango */}
+          <div className="flex items-center justify-between gap-3">
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl">
+              {TABS.map(t => (
+                <button key={t.key} onClick={() => setActiveTab(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === t.key ? 'bg-gray-700 text-white' : 'text-gray-500'}`}>
+                  {t.label}
+                </button>
+              ))}
             </div>
-            <p className="text-gray-300 text-sm">{recommendation.message}</p>
-            {recommendation.suggestedWeight && (
-              <p className="text-white font-bold">
-                Peso sugerido próxima sesión:{' '}
-                <span className="text-blue-400">{recommendation.suggestedWeight} kg</span>
-              </p>
-            )}
+
+            {/* Rango */}
+            <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl">
+              {RANGES.map(r => (
+                <button key={r.label} onClick={() => setRangeDays(r.days)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    rangeDays === r.days ? 'bg-gray-700 text-white' : 'text-gray-500'}`}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Gráfico */}
-          <Card>
-            <h2 className="font-semibold text-white mb-4">
-              Evolución de peso y RPE — últimas 15 sesiones
-            </h2>
-            {progressData.labels.length < 2 ? (
-              <p className="text-gray-500 text-sm text-center py-8">
-                Necesitas al menos 2 registros para ver la gráfica
-              </p>
-            ) : (
-              <Line data={chartData} options={chartOptions} />
-            )}
-          </Card>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-white">{selectedExName}</p>
+              <span className="text-xs font-medium px-2 py-1 rounded-full"
+                style={{ background: tab.color + '20', color: tab.color }}>
+                {tab.label}
+              </span>
+            </div>
 
-          {/* Estadísticas del ejercicio */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Máximo peso',    value: currentLogs.length ? `${Math.max(...currentLogs.map(l => l.weight_kg ?? 0))} kg` : '—' },
-              { label: 'Peso actual',    value: currentLogs[0]?.weight_kg != null ? `${currentLogs[0].weight_kg} kg` : '—' },
-              { label: 'Sesiones totales', value: currentLogs.length },
-              { label: 'RPE promedio',   value: currentLogs.length ? (currentLogs.reduce((s, l) => s + (l.rpe ?? 0), 0) / currentLogs.length).toFixed(1) : '—' },
-            ].map(stat => (
-              <Card key={stat.label} className="text-center">
-                <p className="text-xl font-bold text-blue-400">{stat.value}</p>
-                <p className="text-xs text-gray-400 mt-1">{stat.label}</p>
-              </Card>
-            ))}
+            {sessionPoints.length < 2 ? (
+              <div className="h-40 flex items-center justify-center">
+                <p className="text-gray-600 text-sm">
+                  {sessionPoints.length === 0 ? 'Sin datos en este rango' : 'Necesitas al menos 2 sesiones'}
+                </p>
+              </div>
+            ) : (
+              <div className="h-48">
+                <Line data={chartData} options={buildChartOptions(tab.color, yLabel)} />
+              </div>
+            )}
           </div>
+
+          {/* Stats */}
+          {stats.length > 0 && (
+            <div className="grid grid-cols-4 gap-2">
+              {stats.map(s => (
+                <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-3 text-center">
+                  <p className={`text-lg font-bold ${s.color ?? 'text-blue-400'}`}>{s.value}</p>
+                  <p className="text-[10px] text-gray-600 mt-0.5 leading-tight">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Info 1RM */}
+          {activeTab === 'orm' && (
+            <p className="text-xs text-gray-600 text-center">
+              1RM estimado con fórmula de Epley: peso × (1 + reps/30)
+            </p>
+          )}
         </>
       )}
     </div>
