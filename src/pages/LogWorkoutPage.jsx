@@ -7,7 +7,7 @@
  * - Temporizador de descanso entre series
  * - Resumen post-sesión con calorías y PRs
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useBlocker } from 'react-router-dom'
 import { useExercises } from '../hooks/useExercises'
 import { useSessions }  from '../hooks/useSessions'
@@ -33,8 +33,6 @@ const RPE_OPTIONS = [
 const rpeInactive = 'bg-gray-800 border-gray-700 text-gray-400'
 
 // ── Buscador de ejercicios ────────────────────────────────────────────────────
-import { useRef, useEffect } from 'react'
-
 function ExerciseSearch({ exercises, value, onChange }) {
   const [query, setQuery] = useState('')
   const [open, setOpen]   = useState(false)
