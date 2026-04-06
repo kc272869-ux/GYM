@@ -133,24 +133,14 @@ function ManualInput({ onChange }) {
         </div>
       </div>
 
-      {/* Preview + guardar */}
-      <div className="flex gap-2">
-        <div className={`flex-1 rounded-xl py-3 flex items-center justify-center border ${
-          saved ? 'bg-green-600/15 border-green-500/30' : 'bg-gray-900/60 border-gray-700'
+      {/* Guardar */}
+      <button type="button" onClick={saved ? handleReset : handleSave}
+        disabled={!saved && total <= 0}
+        className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-40 ${
+          saved ? 'bg-green-600/15 border border-green-500/30 text-green-400' : 'bg-blue-600 text-white'
         }`}>
-          <p className={`text-lg font-bold tabular-nums ${saved ? 'text-green-400' : total > 0 ? 'text-white' : 'text-gray-600'}`}>
-            {total > 0 ? fmt(total) : '00:00'}
-          </p>
-          {saved && <p className="text-xs text-green-500 ml-2">✓</p>}
-        </div>
-        <button type="button" onClick={saved ? handleReset : handleSave}
-          disabled={!saved && total <= 0}
-          className={`px-4 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 disabled:opacity-40 ${
-            saved ? 'bg-gray-800 border border-gray-700 text-gray-400' : 'bg-blue-600 text-white'
-          }`}>
-          {saved ? '↺' : 'Guardar'}
-        </button>
-      </div>
+        {saved ? `Guardado: ${fmt(total)}  ↺` : 'Guardar'}
+      </button>
     </div>
   )
 }
