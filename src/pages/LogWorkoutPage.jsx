@@ -347,7 +347,12 @@ export default function LogWorkoutPage() {
             {entry.sets.map((set, si) => (
               <div key={set.id} className="bg-gray-800 rounded-xl p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-500">Serie {si + 1}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Serie {si + 1}</span>
+                    {set.weight && set.reps ? (
+                      <span className="text-xs text-gray-600 tabular-nums">{toDisplay(parseFloat(set.weight))}{label} × {set.reps}</span>
+                    ) : null}
+                  </div>
                   <button onClick={() => removeSet(entry.uid, set.id)} disabled={entry.sets.length === 1}
                     className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm transition-colors">✕</button>
                 </div>
@@ -365,15 +370,31 @@ export default function LogWorkoutPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs text-gray-500 font-medium">Peso ({label})</label>
-                        <input type="number" inputMode="decimal" step={units === 'lb' ? '1' : '0.5'} min="0" placeholder="0"
-                          value={set.weight} onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
-                          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <div className="flex items-center bg-gray-900 border border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                          <button type="button"
+                            onClick={() => updateSet(entry.uid, set.id, 'weight', String(Math.max(0, Math.round((parseFloat(set.weight || 0) - (units === 'lb' ? 5 : 2.5)) * 100) / 100)))}
+                            className="px-3 py-3.5 text-gray-400 text-lg leading-none active:bg-gray-700 transition-colors select-none">−</button>
+                          <input type="number" inputMode="decimal" min="0" placeholder="0"
+                            value={set.weight} onChange={e => updateSet(entry.uid, set.id, 'weight', e.target.value)}
+                            className="flex-1 bg-transparent text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none min-w-0 py-3.5" />
+                          <button type="button"
+                            onClick={() => updateSet(entry.uid, set.id, 'weight', String(Math.round((parseFloat(set.weight || 0) + (units === 'lb' ? 5 : 2.5)) * 100) / 100))}
+                            className="px-3 py-3.5 text-gray-400 text-lg leading-none active:bg-gray-700 transition-colors select-none">+</button>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-gray-500 font-medium">Repeticiones</label>
-                        <input type="number" inputMode="numeric" min="1" max="500" placeholder="0"
-                          value={set.reps} onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
-                          className="w-full px-3 py-3 rounded-xl border bg-gray-900 border-gray-700 text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <div className="flex items-center bg-gray-900 border border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                          <button type="button"
+                            onClick={() => updateSet(entry.uid, set.id, 'reps', String(Math.max(1, parseInt(set.reps || 0) - 1)))}
+                            className="px-3 py-3.5 text-gray-400 text-lg leading-none active:bg-gray-700 transition-colors select-none">−</button>
+                          <input type="number" inputMode="numeric" min="1" placeholder="0"
+                            value={set.reps} onChange={e => updateSet(entry.uid, set.id, 'reps', e.target.value)}
+                            className="flex-1 bg-transparent text-white text-lg font-bold text-center placeholder-gray-700 focus:outline-none min-w-0 py-3.5" />
+                          <button type="button"
+                            onClick={() => updateSet(entry.uid, set.id, 'reps', String(parseInt(set.reps || 0) + 1))}
+                            className="px-3 py-3.5 text-gray-400 text-lg leading-none active:bg-gray-700 transition-colors select-none">+</button>
+                        </div>
                       </div>
                     </div>
                   )
