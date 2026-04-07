@@ -347,12 +347,7 @@ export default function LogWorkoutPage() {
             {entry.sets.map((set, si) => (
               <div key={set.id} className="bg-gray-800 rounded-xl p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Serie {si + 1}</span>
-                    {set.weight && set.reps ? (
-                      <span className="text-xs text-gray-600 tabular-nums">{toDisplay(parseFloat(set.weight))}{label} × {set.reps}</span>
-                    ) : null}
-                  </div>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Serie {si + 1}</span>
                   <button onClick={() => removeSet(entry.uid, set.id)} disabled={entry.sets.length === 1}
                     className="text-gray-600 hover:text-red-400 disabled:opacity-20 text-sm transition-colors">✕</button>
                 </div>
