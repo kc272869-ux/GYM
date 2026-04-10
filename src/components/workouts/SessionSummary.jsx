@@ -15,11 +15,12 @@ const StatBox = ({ icon, value, label, color = 'text-white' }) => (
   </div>
 )
 
-export default function SessionSummary({ sessionName, logs, prs, profile, onDone }) {
+export default function SessionSummary({ sessionName, logs, prs, profile, onDone, durationMin }) {
   const stats = calcSessionCalories({
     logs,
-    weightKg: profile?.weight_kg,
-    sex:      profile?.sex,
+    weightKg:        profile?.weight_kg,
+    sex:             profile?.sex,
+    totalDurationMin: durationMin,
   })
 
   const hasProfile = !!profile?.weight_kg
@@ -63,7 +64,7 @@ export default function SessionSummary({ sessionName, logs, prs, profile, onDone
         <StatBox
           icon="⏱"
           value={stats ? `${stats.durationMin} min` : `${(logs?.length ?? 0) * 2.5} min`}
-          label="Duración estimada"
+          label={durationMin ? 'Duración real' : 'Duración estimada'}
           color="text-blue-400"
         />
         <StatBox

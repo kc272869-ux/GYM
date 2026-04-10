@@ -23,6 +23,7 @@ export function useSessions() {
         id,
         name,
         logged_at,
+        duration_min,
         workout_logs (
           id,
           exercise_id,
@@ -51,11 +52,11 @@ export function useSessions() {
   useEffect(() => { fetchSessions() }, [user])
 
   // Crear sesión + guardar todos sus logs en una sola llamada al hook
-  const saveSession = async ({ name, logs }) => {
+  const saveSession = async ({ name, logs, duration_min }) => {
     // 1. Crear la sesión
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
-      .insert({ user_id: user.id, name })
+      .insert({ user_id: user.id, name, duration_min: duration_min ?? null })
       .select()
       .single()
 

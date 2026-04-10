@@ -105,7 +105,7 @@ function ExerciseSearch({ exercises, value, onChange }) {
 export default function LogWorkoutPage() {
   const navigate = useNavigate()
   const { exercises }            = useExercises()
-  const { saveSession }          = useSessions()
+  const { saveSession, sessions } = useSessions()
   const { workouts }             = useWorkouts()
   const { profile }              = useProfile()
   const { units, toKg, toDisplay, label } = useUnits()
@@ -136,9 +136,29 @@ export default function LogWorkoutPage() {
   const [showTimer, setShowTimer]     = useState(false)
   const [showDraftBanner, setShowDraftBanner] = useState(!!draft)
   const [summary, setSummary]         = useState(null)
+  const [sessionStartAt]              = useState(draft?.startAt ?? Date.now())
+  const [elapsedSec, setElapsedSec]   = useState(Math.floor((Date.now() - (draft?.startAt ?? Date.now())) / 1000))
+  const [showDurationEdit, setShowDurationEdit] = useState(false)
+  const [editedDurationMin, setEditedDurationMin] = useState(60)
 
-  const setExercise = (uid, exerciseId) =>
-    setSession(p => p.map(e => e.uid === uid ? { ...e, exerciseId } : e))
+  const getLastSessionSets = (exerciseId) => {
+    const lastSess = sessions.find(s => s.workout_logs?.some(l => l.exercise_id === exerciseId))
+    if (!lastSess) return [newSet()]
+    const logs = lastSess.workout_logs.filter(l => l.exercise_id === exerciseId)
+    if (!logs.length) return [newSet()]
+    return logs.map(l => ({
+      id:           uid(),
+      weight:       l.weight_kg  != null ? String(toDisplay(l.weight_kg)) : '',
+      reps:         l.reps       != null ? String(l.reps)                 : '',
+      rpe:          l.rpe        ?? 7,
+      duration_sec: l.duration_sec != null ? String(l.duration_sec)       : '',
+    }))
+  }
+
+  const setExercise = (entryUid, exerciseId) =>
+    setSession(p => p.map(e => e.uid === entryUid
+      ? { ...e, exerciseId, sets: getLastSessionSets(exerciseId) }
+      : e))
 
   const updateSet = (uid, setId, field, value) =>
     setSession(p => p.map(e => e.uid !== uid ? e : {
@@ -168,8 +188,18 @@ export default function LogWorkoutPage() {
         if (exType === 'weight_reps' && (!s.weight || !s.reps)) return setError('Completa peso y reps en todas las series')
       }
     }
+    const elapsedMin = Math.round((Date.now() - sessionStartAt) / 60000)
+    if (elapsedMin > 120) {
+      setEditedDurationMin(elapsedMin)
+      setShowDurationEdit(true)
+      return
+    }
+    await doSave(elapsedMin)
+  }
+
+  const doSave = async (durationMin) => {
     setSaving(true)
-    const exNames   = session.map(e => exercises.find(x => x.id === e.exerciseId)?.name ?? '')
+    setShowDurationEdit(false)
     const muscles   = [...new Set(session.map(e => exercises.find(x => x.id === e.exerciseId)?.muscle_group).filter(Boolean))]
     const smartName = (() => {
       if (muscles.length === 0) return 'Sesión'
@@ -198,7 +228,7 @@ export default function LogWorkoutPage() {
       }))
     })
 
-    const { error, data: savedSession } = await saveSession({ name: finalName, logs })
+    const { error } = await saveSession({ name: finalName, logs, duration_min: durationMin })
     if (error) { setError('Error al guardar. Tu sesión está en borrador — puedes intentarlo de nuevo.'); setSaving(false); return }
 
     // Construir logs con exercise_id para detectar PRs
@@ -217,9 +247,16 @@ export default function LogWorkoutPage() {
     const prs = detectPRs(logsWithEx, workouts)
 
     clearDraft()
-    setSummary({ sessionName: finalName, logs: logsWithEx, prs })
+    setSummary({ sessionName: finalName, logs: logsWithEx, prs, durationMin })
     setSaving(false)
   }
+
+  // Cronómetro de sesión — actualiza cada segundo
+  useEffect(() => {
+    if (summary) return
+    const id = setInterval(() => setElapsedSec(Math.floor((Date.now() - sessionStartAt) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [sessionStartAt, summary])
 
   // Auto-guardar borrador en localStorage
   useEffect(() => {
@@ -228,7 +265,7 @@ export default function LogWorkoutPage() {
       e.exerciseId || e.sets.some(s => s.weight || s.reps || s.duration_sec)
     )
     if (hasSomething || sessionName) {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ sessionName, session, savedAt: Date.now() }))
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ sessionName, session, savedAt: Date.now(), startAt: sessionStartAt }))
     }
   }, [session, sessionName, summary])
 
@@ -242,6 +279,14 @@ export default function LogWorkoutPage() {
 
   const totalSets = session.reduce((s, e) => s + e.sets.length, 0)
 
+  const fmtElapsed = (sec) => {
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  }
+
   // ── Resumen post-sesión ───────────────────────────────────────────────────
   if (summary) {
     return (
@@ -250,6 +295,7 @@ export default function LogWorkoutPage() {
         logs={summary.logs}
         prs={summary.prs}
         profile={profile}
+        durationMin={summary.durationMin}
         onDone={() => navigate('/history')}
       />
     )
@@ -277,13 +323,51 @@ export default function LogWorkoutPage() {
           <h1 className="text-xl font-bold text-white">➕ Nueva sesión</h1>
           <p className="text-gray-500 text-xs mt-0.5">{session.length} ejercicio{session.length > 1 ? 's' : ''} · {totalSets} series</p>
         </div>
-        {/* Toggle temporizador */}
-        <button onClick={() => setShowTimer(t => !t)}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-            showTimer ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
-          ⏱ Timer
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Cronómetro de sesión */}
+          <span className={`font-mono text-sm font-bold tabular-nums ${elapsedSec > 7200 ? 'text-red-400' : 'text-green-400'}`}>
+            {fmtElapsed(elapsedSec)}
+          </span>
+          {/* Toggle temporizador de descanso */}
+          <button onClick={() => setShowTimer(t => !t)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+              showTimer ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+            ⏱ Timer
+          </button>
+        </div>
       </div>
+
+      {/* Modal: editar duración si la sesión lleva más de 2 horas */}
+      {showDurationEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <p className="text-white font-bold text-base">Sesión muy larga</p>
+            <p className="text-gray-400 text-sm">
+              Tu sesión registra <span className="text-red-400 font-semibold">{Math.floor(editedDurationMin / 60)}h {editedDurationMin % 60}min</span>.
+              ¿Es correcto? Puedes ajustar el tiempo si se te olvidó guardar.
+            </p>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Duración real (minutos)</label>
+              <input
+                type="number" inputMode="numeric" min="1"
+                value={editedDurationMin}
+                onChange={e => setEditedDurationMin(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowDurationEdit(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-400 text-sm font-semibold">
+                Cancelar
+              </button>
+              <button onClick={() => doSave(editedDurationMin)}
+                className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold">
+                Guardar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Nombre sesión */}
       <input type="text" placeholder='Nombre de la sesión — opcional'

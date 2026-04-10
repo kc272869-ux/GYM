@@ -6,6 +6,8 @@
 import { useState, useMemo } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useUnits } from '../context/UnitsContext'
+import { useProfile } from '../hooks/useProfile'
+import { calcSessionCalories } from '../utils/calories'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -60,6 +62,7 @@ function fmtDuration(sec) {
 export default function HistoryPage() {
   const { sessions, loading, deleteSession } = useSessions()
   const { toDisplay, label } = useUnits()
+  const { profile } = useProfile()
   const [filterDays, setFilterDays] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
@@ -122,6 +125,12 @@ export default function HistoryPage() {
               b.sets.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0) -
               a.sets.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0)
             )[0]
+            const calStats    = calcSessionCalories({
+              logs,
+              weightKg:         profile?.weight_kg,
+              sex:              profile?.sex,
+              totalDurationMin: session.duration_min,
+            })
 
             return (
               <div key={session.id} className={`border rounded-2xl overflow-hidden transition-all ${
@@ -174,6 +183,13 @@ export default function HistoryPage() {
                           {avgRpe}
                         </p>
                         <p className="text-[10px] text-gray-600">RPE avg</p>
+                      </div>
+                    </>}
+                    {calStats && <>
+                      <div className="w-px h-6 bg-gray-800" />
+                      <div className="text-center">
+                        <p className="text-sm font-bold text-orange-400">{calStats.calories}</p>
+                        <p className="text-[10px] text-gray-600">kcal</p>
                       </div>
                     </>}
                     {/* Barra de volumen */}
