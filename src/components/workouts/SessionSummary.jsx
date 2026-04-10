@@ -6,45 +6,7 @@
  */
 import { Link } from 'react-router-dom'
 import { calcSessionCalories } from '../../utils/calories'
-
-function buildSummaryShareText({ sessionName, logs, stats }) {
-  const byExercise = {}
-  for (const l of logs ?? []) {
-    const name = l.exercises?.name ?? '—'
-    if (!byExercise[name]) byExercise[name] = { type: l.exercises?.type ?? 'weight_reps', sets: [] }
-    byExercise[name].sets.push(l)
-  }
-  const lines = [`💪 *${sessionName || 'Sesión'}*`, '']
-  for (const [name, ex] of Object.entries(byExercise)) {
-    if (ex.type === 'time') {
-      const dur = ex.sets[0]?.duration_sec ?? 0
-      const m = Math.floor(dur / 60), s = dur % 60
-      lines.push(`• ${name} — ${m}:${String(s).padStart(2,'0')}min`)
-    } else {
-      const maxW = Math.max(...ex.sets.map(s => s.weight_kg ?? 0))
-      const reps = ex.sets[0]?.reps ?? 0
-      const avgRpe = (ex.sets.reduce((a, s) => a + (s.rpe ?? 7), 0) / ex.sets.length).toFixed(0)
-      lines.push(`• ${name} — ${ex.sets.length}×${reps} @ ${maxW}kg (RPE ${avgRpe})`)
-    }
-  }
-  lines.push('')
-  const statParts = []
-  if (stats?.totalVolume > 0) statParts.push(`📦 ${(stats.totalVolume/1000).toFixed(1)}t volumen`)
-  if (stats?.calories)        statParts.push(`🔥 ${stats.calories} kcal`)
-  if (stats?.avgRpe)          statParts.push(`RPE avg ${stats.avgRpe}`)
-  if (stats?.durationMin)     statParts.push(`⏱ ${stats.durationMin} min`)
-  if (statParts.length) lines.push(statParts.join(' · '))
-  lines.push('Registrado con Heavy 💪')
-  return lines.join('\n')
-}
-
-function shareSession(text) {
-  if (navigator.share) {
-    navigator.share({ text }).catch(() => {})
-  } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
-}
+import ShareCard, { useShareCard } from './ShareCard'
 
 const StatBox = ({ icon, value, label, color = 'text-white' }) => (
   <div className="bg-gray-800/60 rounded-2xl p-4 flex flex-col items-center gap-1 text-center">
@@ -54,15 +16,34 @@ const StatBox = ({ icon, value, label, color = 'text-white' }) => (
   </div>
 )
 
+// Convierte logs planos en exerciseMap que entiende ShareCard
+function logsToExerciseMap(logs) {
+  const map = {}
+  for (const l of logs ?? []) {
+    const name = l.exercises?.name ?? '—'
+    if (!map[name]) map[name] = {
+      name,
+      muscleGroup: l.exercises?.muscle_group ?? '',
+      type: l.exercises?.type ?? 'weight_reps',
+      sets: [],
+    }
+    map[name].sets.push(l)
+  }
+  return Object.values(map)
+}
+
 export default function SessionSummary({ sessionName, logs, prs, profile, onDone, durationMin }) {
   const stats = calcSessionCalories({
     logs,
-    weightKg:        profile?.weight_kg,
-    sex:             profile?.sex,
+    weightKg:         profile?.weight_kg,
+    sex:              profile?.sex,
     totalDurationMin: durationMin,
   })
 
-  const hasProfile = !!profile?.weight_kg
+  const hasProfile    = !!profile?.weight_kg
+  const exerciseMap   = logsToExerciseMap(logs)
+  const totalVolume   = logs?.reduce((s, l) => s + (l.weight_kg ?? 0) * (l.reps ?? 0), 0) ?? 0
+  const { cardRef, share, sharing } = useShareCard()
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-8 space-y-6 text-center">
@@ -108,10 +89,7 @@ export default function SessionSummary({ sessionName, logs, prs, profile, onDone
         />
         <StatBox
           icon="🏋️"
-          value={(() => {
-            const vol = logs?.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0) ?? 0
-            return vol > 0 ? `${vol.toLocaleString()} kg` : '—'
-          })()}
+          value={totalVolume > 0 ? `${totalVolume.toLocaleString()} kg` : '—'}
           label="Volumen total"
           color="text-purple-400"
         />
@@ -142,14 +120,28 @@ export default function SessionSummary({ sessionName, logs, prs, profile, onDone
           Ver historial
         </button>
         <button
-          onClick={() => shareSession(buildSummaryShareText({ sessionName, logs, stats }))}
-          className="w-full py-3.5 rounded-2xl border border-green-800/50 text-green-400 font-medium text-sm active:scale-[0.98] transition-all">
-          Compartir sesión
+          onClick={() => share(sessionName)}
+          disabled={sharing}
+          className="w-full py-3.5 rounded-2xl border border-green-800/50 text-green-400 font-medium text-sm active:scale-[0.98] transition-all disabled:opacity-50">
+          {sharing ? 'Generando imagen...' : 'Compartir sesión'}
         </button>
         <Link to="/log"
           className="w-full py-3.5 rounded-2xl border border-gray-700 text-gray-400 font-medium text-sm active:scale-[0.98] transition-all">
           Nueva sesión
         </Link>
+      </div>
+
+      {/* ShareCard oculta */}
+      <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
+        <ShareCard
+          cardRef={cardRef}
+          sessionName={sessionName}
+          date={null}
+          exerciseMap={exerciseMap}
+          stats={stats ? { ...stats, totalVolume } : null}
+          label="kg"
+          toDisplay={(v) => v}
+        />
       </div>
     </div>
   )

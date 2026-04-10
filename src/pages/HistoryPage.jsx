@@ -3,11 +3,12 @@
  * ----------------------
  * Historial visual de sesiones con stats por sesión y detalle expandible.
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useSessions } from '../hooks/useSessions'
 import { useUnits } from '../context/UnitsContext'
 import { useProfile } from '../hooks/useProfile'
 import { calcSessionCalories } from '../utils/calories'
+import ShareCard, { useShareCard } from '../components/workouts/ShareCard'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -26,39 +27,6 @@ const MUSCLE_COLORS = {
 
 const muscleColor = (m) => MUSCLE_COLORS[m] ?? { bg: 'bg-gray-700/40', text: 'text-gray-400', dot: 'bg-gray-500' }
 
-function buildShareText({ sessionName, date, exerciseMap, totalVol, calStats, avgRpe, label, toDisplay }) {
-  const dateStr = format(new Date(date), "EEEE d 'de' MMMM · HH:mm", { locale: es })
-  const lines = [`💪 *${sessionName || 'Sesión'}*`, `📅 ${dateStr}`, '']
-  for (const ex of exerciseMap) {
-    if (ex.type === 'time') {
-      const dur = ex.sets[0]?.duration_sec
-      const m = dur ? Math.floor(dur / 60) : 0
-      const s = dur ? dur % 60 : 0
-      lines.push(`• ${ex.name} — ${m}:${String(s).padStart(2,'0')}min`)
-    } else {
-      const maxW  = Math.max(...ex.sets.map(l => l.weight_kg ?? 0))
-      const reps  = ex.sets[0]?.reps ?? 0
-      const avgRpeEx = (ex.sets.reduce((a, l) => a + (l.rpe ?? 7), 0) / ex.sets.length).toFixed(0)
-      lines.push(`• ${ex.name} — ${ex.sets.length}×${reps} @ ${toDisplay(maxW)}${label} (RPE ${avgRpeEx})`)
-    }
-  }
-  lines.push('')
-  const stats = []
-  if (totalVol > 0) stats.push(`📦 ${(totalVol/1000).toFixed(1)}t volumen`)
-  if (calStats?.calories) stats.push(`🔥 ${calStats.calories} kcal`)
-  if (avgRpe) stats.push(`RPE avg ${avgRpe}`)
-  if (stats.length) lines.push(stats.join(' · '))
-  lines.push('Registrado con Heavy 💪')
-  return lines.join('\n')
-}
-
-function shareSession(text) {
-  if (navigator.share) {
-    navigator.share({ text }).catch(() => {})
-  } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
-}
 
 function MuscleChip({ muscle }) {
   const c = muscleColor(muscle)
@@ -100,6 +68,8 @@ export default function HistoryPage() {
   const [filterDays, setFilterDays] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [shareData, setShareData] = useState(null)   // { session, exerciseMap, calStats, avgRpe, totalVol }
+  const { cardRef, share, sharing } = useShareCard()
 
   const filtered = useMemo(() => sessions.filter(s => {
     if (filterDays === 'all') return true
@@ -310,19 +280,15 @@ export default function HistoryPage() {
                     {/* Acciones */}
                     <div className="px-4 pb-4 flex gap-2">
                       <button
-                        onClick={() => shareSession(buildShareText({
-                          sessionName: session.name,
-                          date: session.logged_at,
-                          exerciseMap,
-                          totalVol,
-                          calStats,
-                          avgRpe,
-                          label,
-                          toDisplay,
-                        }))}
-                        className="flex-1 py-2.5 rounded-xl border border-green-800/50 text-green-400 hover:bg-green-900/20 text-sm font-medium transition-colors active:scale-[0.98]"
+                        onClick={async () => {
+                          setShareData({ session, exerciseMap, calStats, avgRpe, totalVol })
+                          await new Promise(r => setTimeout(r, 50))
+                          share(session.name)
+                        }}
+                        disabled={sharing}
+                        className="flex-1 py-2.5 rounded-xl border border-green-800/50 text-green-400 hover:bg-green-900/20 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
                       >
-                        Compartir
+                        {sharing ? 'Generando...' : 'Compartir'}
                       </button>
                       <button
                         onClick={() => handleDelete(session.id)}
@@ -337,6 +303,21 @@ export default function HistoryPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ShareCard oculta — se captura cuando shareData está seteado */}
+      {shareData && (
+        <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
+          <ShareCard
+            cardRef={cardRef}
+            sessionName={shareData.session.name}
+            date={shareData.session.logged_at}
+            exerciseMap={shareData.exerciseMap}
+            stats={shareData.calStats ? { ...shareData.calStats, totalVolume: shareData.totalVol } : null}
+            label={label}
+            toDisplay={toDisplay}
+          />
         </div>
       )}
     </div>
