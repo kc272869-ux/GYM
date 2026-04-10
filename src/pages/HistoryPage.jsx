@@ -26,6 +26,40 @@ const MUSCLE_COLORS = {
 
 const muscleColor = (m) => MUSCLE_COLORS[m] ?? { bg: 'bg-gray-700/40', text: 'text-gray-400', dot: 'bg-gray-500' }
 
+function buildShareText({ sessionName, date, exerciseMap, totalVol, calStats, avgRpe, label, toDisplay }) {
+  const dateStr = format(new Date(date), "EEEE d 'de' MMMM · HH:mm", { locale: es })
+  const lines = [`💪 *${sessionName || 'Sesión'}*`, `📅 ${dateStr}`, '']
+  for (const ex of exerciseMap) {
+    if (ex.type === 'time') {
+      const dur = ex.sets[0]?.duration_sec
+      const m = dur ? Math.floor(dur / 60) : 0
+      const s = dur ? dur % 60 : 0
+      lines.push(`• ${ex.name} — ${m}:${String(s).padStart(2,'0')}min`)
+    } else {
+      const maxW  = Math.max(...ex.sets.map(l => l.weight_kg ?? 0))
+      const reps  = ex.sets[0]?.reps ?? 0
+      const avgRpeEx = (ex.sets.reduce((a, l) => a + (l.rpe ?? 7), 0) / ex.sets.length).toFixed(0)
+      lines.push(`• ${ex.name} — ${ex.sets.length}×${reps} @ ${toDisplay(maxW)}${label} (RPE ${avgRpeEx})`)
+    }
+  }
+  lines.push('')
+  const stats = []
+  if (totalVol > 0) stats.push(`📦 ${(totalVol/1000).toFixed(1)}t volumen`)
+  if (calStats?.calories) stats.push(`🔥 ${calStats.calories} kcal`)
+  if (avgRpe) stats.push(`RPE avg ${avgRpe}`)
+  if (stats.length) lines.push(stats.join(' · '))
+  lines.push('Registrado con Heavy 💪')
+  return lines.join('\n')
+}
+
+function shareSession(text) {
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {})
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+}
+
 function MuscleChip({ muscle }) {
   const c = muscleColor(muscle)
   return (
@@ -121,10 +155,6 @@ export default function HistoryPage() {
             const muscles     = [...new Set(exerciseMap.map(e => e.muscleGroup).filter(Boolean))]
             const totalVol    = logs.reduce((s, l) => s + (l.weight_kg ?? 0) * (l.reps ?? 0), 0)
             const avgRpe      = logs.length ? (logs.reduce((s, l) => s + (l.rpe ?? 7), 0) / logs.length).toFixed(1) : null
-            const topVolEx    = exerciseMap.sort((a, b) =>
-              b.sets.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0) -
-              a.sets.reduce((s,l) => s + (l.weight_kg??0)*(l.reps??0), 0)
-            )[0]
             const calStats    = calcSessionCalories({
               logs,
               weightKg:         profile?.weight_kg,
@@ -277,12 +307,27 @@ export default function HistoryPage() {
                       })}
                     </div>
 
-                    {/* Borrar */}
-                    <div className="px-4 pb-4">
+                    {/* Acciones */}
+                    <div className="px-4 pb-4 flex gap-2">
+                      <button
+                        onClick={() => shareSession(buildShareText({
+                          sessionName: session.name,
+                          date: session.logged_at,
+                          exerciseMap,
+                          totalVol,
+                          calStats,
+                          avgRpe,
+                          label,
+                          toDisplay,
+                        }))}
+                        className="flex-1 py-2.5 rounded-xl border border-green-800/50 text-green-400 hover:bg-green-900/20 text-sm font-medium transition-colors active:scale-[0.98]"
+                      >
+                        Compartir
+                      </button>
                       <button
                         onClick={() => handleDelete(session.id)}
                         disabled={deletingId === session.id}
-                        className="w-full py-2.5 rounded-xl border border-red-900/40 text-red-500 hover:bg-red-900/20 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl border border-red-900/40 text-red-500 hover:bg-red-900/20 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
                       >
                         {deletingId === session.id ? 'Eliminando...' : 'Eliminar sesión'}
                       </button>

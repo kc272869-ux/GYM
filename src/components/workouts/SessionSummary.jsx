@@ -7,6 +7,45 @@
 import { Link } from 'react-router-dom'
 import { calcSessionCalories } from '../../utils/calories'
 
+function buildSummaryShareText({ sessionName, logs, stats }) {
+  const byExercise = {}
+  for (const l of logs ?? []) {
+    const name = l.exercises?.name ?? '—'
+    if (!byExercise[name]) byExercise[name] = { type: l.exercises?.type ?? 'weight_reps', sets: [] }
+    byExercise[name].sets.push(l)
+  }
+  const lines = [`💪 *${sessionName || 'Sesión'}*`, '']
+  for (const [name, ex] of Object.entries(byExercise)) {
+    if (ex.type === 'time') {
+      const dur = ex.sets[0]?.duration_sec ?? 0
+      const m = Math.floor(dur / 60), s = dur % 60
+      lines.push(`• ${name} — ${m}:${String(s).padStart(2,'0')}min`)
+    } else {
+      const maxW = Math.max(...ex.sets.map(s => s.weight_kg ?? 0))
+      const reps = ex.sets[0]?.reps ?? 0
+      const avgRpe = (ex.sets.reduce((a, s) => a + (s.rpe ?? 7), 0) / ex.sets.length).toFixed(0)
+      lines.push(`• ${name} — ${ex.sets.length}×${reps} @ ${maxW}kg (RPE ${avgRpe})`)
+    }
+  }
+  lines.push('')
+  const statParts = []
+  if (stats?.totalVolume > 0) statParts.push(`📦 ${(stats.totalVolume/1000).toFixed(1)}t volumen`)
+  if (stats?.calories)        statParts.push(`🔥 ${stats.calories} kcal`)
+  if (stats?.avgRpe)          statParts.push(`RPE avg ${stats.avgRpe}`)
+  if (stats?.durationMin)     statParts.push(`⏱ ${stats.durationMin} min`)
+  if (statParts.length) lines.push(statParts.join(' · '))
+  lines.push('Registrado con Heavy 💪')
+  return lines.join('\n')
+}
+
+function shareSession(text) {
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {})
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+}
+
 const StatBox = ({ icon, value, label, color = 'text-white' }) => (
   <div className="bg-gray-800/60 rounded-2xl p-4 flex flex-col items-center gap-1 text-center">
     <span className="text-2xl">{icon}</span>
@@ -101,6 +140,11 @@ export default function SessionSummary({ sessionName, logs, prs, profile, onDone
         <button onClick={onDone}
           className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm active:scale-[0.98] transition-all">
           Ver historial
+        </button>
+        <button
+          onClick={() => shareSession(buildSummaryShareText({ sessionName, logs, stats }))}
+          className="w-full py-3.5 rounded-2xl border border-green-800/50 text-green-400 font-medium text-sm active:scale-[0.98] transition-all">
+          Compartir sesión
         </button>
         <Link to="/log"
           className="w-full py-3.5 rounded-2xl border border-gray-700 text-gray-400 font-medium text-sm active:scale-[0.98] transition-all">
